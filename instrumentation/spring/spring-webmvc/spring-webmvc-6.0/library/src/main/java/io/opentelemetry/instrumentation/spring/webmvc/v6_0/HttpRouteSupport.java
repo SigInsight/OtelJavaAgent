@@ -78,11 +78,9 @@ final class HttpRouteSupport {
   private void setHandlerMappings(List<HandlerMapping> mappings) {
     List<HandlerMapping> handlerMappings = new ArrayList<>();
     for (HandlerMapping mapping : mappings) {
-      // Originally we ran findMapping at the very beginning of the request. This turned out to have
-      // application-crashing side-effects with grails. That is why we don't add all HandlerMapping
-      // classes here. Although now that we run findMapping after the request, and only when server
-      // span name has not been updated by a controller, the probability of bad side-effects is much
-      // reduced even if we did add all HandlerMapping classes here.
+      // Originally we ran findMapping at the very beginning of the request. That turned out to
+      // have application-crashing side-effects with some framework integrations, so we keep this
+      // restricted to RequestMappingHandlerMapping.
       if (mapping instanceof RequestMappingHandlerMapping) {
         handlerMappings.add(mapping);
         if (mapping.usesPathPatterns()) {

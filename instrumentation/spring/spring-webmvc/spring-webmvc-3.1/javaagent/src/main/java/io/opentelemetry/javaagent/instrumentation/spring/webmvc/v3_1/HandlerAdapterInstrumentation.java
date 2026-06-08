@@ -22,7 +22,6 @@ import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.api.semconv.http.HttpServerRoute;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
-import io.opentelemetry.javaagent.instrumentation.spring.webmvc.common.v3_1.IsGrailsHandler;
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
@@ -66,11 +65,6 @@ class HandlerAdapterInstrumentation implements TypeInstrumentation {
       @Nullable
       public static AdviceScope enter(HttpServletRequest request, Object handler) {
         // TODO (trask) should there be a way to customize Instrumenter.shouldStart()?
-        if (IsGrailsHandler.isGrailsHandler(handler)) {
-          // skip creating handler span for grails, grails instrumentation will take care of it
-          return null;
-        }
-
         Context parentContext = Context.current();
 
         // don't start a new top-level span

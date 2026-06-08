@@ -17,7 +17,7 @@ class TelemetryParserTest {
         """
         when: "otel.instrumentation.common.experimental.view-telemetry.enabled=true,otel.instrumentation.jsp.experimental-span-attributes=true"
         metrics_by_scope:
-          - scope: io.opentelemetry.jsp-2.3
+          - scope: io.opentelemetry.test
         """;
 
     String result = TelemetryParser.normalizeWhenCondition(content);

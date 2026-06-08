@@ -186,8 +186,7 @@ configurations {
       // Pinning of `latest.release`/`+` versions is applied across test-related
       // configurations and the main `compileClasspath`. compileClasspath is included so
       // that modules whose `library(...)` declarations resolve `latest.release` in latest
-      // mode (e.g. gwt-2.0, which uses the post-2.10 `org.gwtproject` group only in latest
-      // mode) get pinned versions on the agent's compile classpath. Pinning is safe on
+      // mode get pinned versions on the agent's compile classpath. Pinning is safe on
       // compileClasspath because `lookupPinnedVersion` is a no-op for the concrete versions
       // declared via `library(...)`; only dynamic versions (latest.release / +) are affected.
       val applyPinning = pinLatestDeps &&
