@@ -34,8 +34,8 @@ tasks {
     systemProperty("testLatestDeps", otelProps.testLatestDeps)
     // async-http-client 3.0 requires java 11
     // We are not using minJavaVersionSupported for latestDepTest because that way the instrumentation
-    // gets compiled with java 11 when running latestDepTest. This causes play-mvc-2.4 latest dep tests
-    // to fail because they require java 8 and instrumentation compiled with java 11 won't apply.
+    // gets compiled with java 11 when running latestDepTest. Some Java 8-only latest dependency test
+    // suites require the instrumentation itself to stay Java 8-compatible in order for muzzle to apply.
     if (otelProps.testLatestDeps && testJavaVersion.isJava8) {
       enabled = false
     }
