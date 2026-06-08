@@ -557,4 +557,3 @@ include(":instrumentation:vibur-dbcp-11.0:testing")
 
 // benchmark
 include(":benchmark-overhead-jmh")
-include(":benchmark-jfr-analyzer")
