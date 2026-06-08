@@ -35,7 +35,7 @@ agent instrumentation.
 ## Folder Structure
 
 Refer to some of our existing instrumentations for examples of the folder structure, for example:
-[aws-sdk-2.2](../../instrumentation/aws-sdk/aws-sdk-2.2).
+[jdbc](../../instrumentation/jdbc).
 
 When writing new instrumentation, create a directory inside `instrumentation` that corresponds to
 the instrumented library and the oldest version being targeted. Ideally an old version of the
@@ -410,8 +410,7 @@ instrumentation modules.
 Some examples of this include:
 
 - Application server instrumentations communicating with Servlet API instrumentations.
-- Different high-level Kafka consumer instrumentations suppressing the low-level `kafka-clients`
-  instrumentation.
+- Different high-level instrumentations suppressing a lower-level shared instrumentation.
 
 Create a module named `bootstrap` and add a `build.gradle.kts` file with the following content:
 

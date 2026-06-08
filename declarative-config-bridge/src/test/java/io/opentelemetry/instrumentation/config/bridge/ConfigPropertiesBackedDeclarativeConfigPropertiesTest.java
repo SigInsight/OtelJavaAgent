@@ -19,13 +19,12 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
   @Test
   void testTranslateName_regularName() {
     DeclarativeConfigProperties config =
-        createConfig("otel.instrumentation.kafka.producer-propagation.enabled", "false");
+        createConfig("otel.instrumentation.jdbc-datasource.enabled", "false");
 
     assertThat(
             config
                 .getStructured("java")
-                .getStructured("kafka")
-                .getStructured("producer_propagation")
+                .getStructured("jdbc_datasource")
                 .getBoolean("enabled"))
         .isNotNull()
         .isFalse();
@@ -190,20 +189,26 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
   @Test
   void testGetInt() {
     DeclarativeConfigProperties config =
-        createConfig("otel.instrumentation.aws-lambda.flush-timeout", "5000");
+        createConfig("otel.instrumentation.runtime-telemetry.package-emitter.jars-per-second", "5");
 
-    assertThat(config.getStructured("java").getStructured("aws_lambda").getInt("flush_timeout"))
-        .isEqualTo(5000);
+    assertThat(
+            config
+                .getStructured("java")
+                .getStructured("runtime_telemetry")
+                .getStructured("package_emitter")
+                .getInt("jars_per_second"))
+        .isEqualTo(5);
   }
 
   @Test
   void testGetLong() {
     assertThat(
-            createConfig("otel.instrumentation.aws-lambda.flush-timeout", "30000")
+            createConfig("otel.instrumentation.runtime-telemetry.package-emitter.jars-per-second", "30")
                 .getStructured("java")
-                .getStructured("aws_lambda")
-                .getLong("flush_timeout"))
-        .isEqualTo(30000L);
+                .getStructured("runtime_telemetry")
+                .getStructured("package_emitter")
+                .getLong("jars_per_second"))
+        .isEqualTo(30L);
 
   }
 
@@ -239,13 +244,13 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
   @Test
   void testPathWithJavaPrefix() {
     DeclarativeConfigProperties config =
-        createConfig("otel.instrumentation.kafka.experimental-span-attributes", "true");
+        createConfig("otel.instrumentation.runtime-telemetry.experimental.prefer-jfr", "true");
 
     assertThat(
             config
                 .getStructured("java")
-                .getStructured("kafka")
-                .getBoolean("experimental_span_attributes/development"))
+                .getStructured("runtime_telemetry")
+                .getBoolean("prefer_jfr/development"))
         .isTrue();
   }
 
@@ -279,13 +284,12 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
   @Test
   void testWithoutJavaPrefix_doesNotMatch() {
     DeclarativeConfigProperties config =
-        createConfig("otel.instrumentation.kafka.producer-propagation.enabled", "false");
+        createConfig("otel.instrumentation.jdbc-datasource.enabled", "false");
 
     // Without "java" prefix, should not match the property
     assertThat(
             config
-                .getStructured("kafka")
-                .getStructured("producer_propagation")
+                .getStructured("jdbc_datasource")
                 .getBoolean("enabled"))
         .isNull();
   }

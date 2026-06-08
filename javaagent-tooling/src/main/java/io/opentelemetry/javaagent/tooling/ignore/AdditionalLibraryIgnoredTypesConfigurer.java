@@ -84,12 +84,6 @@ public class AdditionalLibraryIgnoredTypesConfigurer implements IgnoredTypesConf
             "org.springframework.data.jpa.repository.query.QueryParameterSetter$NamedOrIndexedQueryParameterSetter$$Lambda");
 
     builder
-        .ignoreClass("org.springframework.amqp.")
-        .allowClass("org.springframework.amqp.rabbit.connection.")
-        .allowClass("org.springframework.amqp.rabbit.core.RabbitTemplate$$Lambda")
-        .allowClass("org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer");
-
-    builder
         .ignoreClass("org.springframework.beans.")
         .allowClass("org.springframework.beans.factory.support.DisposableBeanAdapter")
         .allowClass("org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader$");
@@ -184,13 +178,6 @@ public class AdditionalLibraryIgnoredTypesConfigurer implements IgnoredTypesConf
         .allowClass("org.springframework.http.codec.multipart.FileStorage$TempFileStorage$$Lambda")
         // There are some Mono implementation that get instrumented
         .allowClass("org.springframework.http.server.reactive.");
-
-    builder
-        .ignoreClass("org.springframework.jms.")
-        .allowClass("org.springframework.jms.listener.")
-        .allowClass(
-            "org.springframework.jms.config.JmsListenerEndpointRegistry$AggregatingCallback")
-        .allowClass("org.springframework.jms.support.destination.JmsDestinationAccessor");
 
     builder
         .ignoreClass("org.springframework.util.")
