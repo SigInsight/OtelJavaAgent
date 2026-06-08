@@ -6,7 +6,6 @@ dependencies {
   testInstrumentation(project(":instrumentation:jdbc:javaagent"))
   testInstrumentation(project(":instrumentation:r2dbc-1.0:javaagent"))
   testInstrumentation(project(":instrumentation:reactor:reactor-3.1:javaagent"))
-  testInstrumentation(project(":instrumentation:spring:spring-core-2.0:javaagent"))
   testImplementation(project(":instrumentation:spring:spring-data:spring-data-common:testing"))
 
   testLibrary("org.hibernate.orm:hibernate-core:6.0.0.Final")

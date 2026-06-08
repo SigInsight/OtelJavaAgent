@@ -18,9 +18,6 @@ dependencies {
   testImplementation("com.google.guava:guava")
   testImplementation("javax.inject:javax.inject:1")
 
-  // SimpleAsyncTaskExecutor context propagation
-  testInstrumentation(project(":instrumentation:spring:spring-core-2.0:javaagent"))
-
   // spring batch 5.0 uses spring framework 6.0
   latestDepTestLibrary("org.springframework.batch:spring-batch-core:4.+") // documented limitation
 }

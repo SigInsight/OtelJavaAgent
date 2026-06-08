@@ -25,7 +25,6 @@ dependencies {
   testInstrumentation(project(":instrumentation:spring:spring-webmvc:spring-webmvc-3.1:javaagent"))
   testInstrumentation(project(":instrumentation:servlet:servlet-5.0:javaagent"))
   testInstrumentation(project(":instrumentation:tomcat:tomcat-10.0:javaagent"))
-  testInstrumentation(project(":instrumentation:spring:spring-core-2.0:javaagent"))
   testInstrumentation(project(":instrumentation:spring:spring-web:spring-web-6.0:javaagent"))
 
   testImplementation(project(":instrumentation:spring:spring-webmvc:spring-webmvc-common-3.1:testing"))

@@ -510,6 +510,36 @@
       "defaultValue": true
     },
     {
+      "name": "otel.instrumentation.runtime-telemetry.capture-gc-cause",
+      "type": "java.lang.Boolean",
+      "description": "Enable the capture of the jvm.gc.cause attribute with the jvm.gc.duration metric.",
+      "defaultValue": false
+    },
+    {
+      "name": "otel.instrumentation.runtime-telemetry.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable runtime telemetry metrics.",
+      "defaultValue": true
+    },
+    {
+      "name": "otel.instrumentation.runtime-telemetry.emit-experimental-metrics",
+      "type": "java.lang.Boolean",
+      "description": "Enable the capture of experimental JMX-based metrics.",
+      "defaultValue": false
+    },
+    {
+      "name": "otel.instrumentation.runtime-telemetry.emit-experimental-jfr-metrics",
+      "type": "java.lang.Boolean",
+      "description": "Enable the capture of experimental JFR-based metrics on Java 17+.",
+      "defaultValue": false
+    },
+    {
+      "name": "otel.instrumentation.runtime-telemetry.experimental.prefer-jfr",
+      "type": "java.lang.Boolean",
+      "description": "Prefer JFR over JMX for metrics available from both sources, on Java 17+.",
+      "defaultValue": false
+    },
+    {
       "name": "otel.instrumentation.sanitization.url.experimental.sensitive-query-parameters",
       "type": "java.util.List<java.lang.String>",
       "description": "List of URL query parameter names whose values are redacted in URL attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.",

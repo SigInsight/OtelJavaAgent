@@ -47,9 +47,6 @@ dependencies {
   compileOnly("org.springframework:spring-webflux:5.0.0.RELEASE")
   compileOnly("io.projectreactor.ipc:reactor-netty:0.7.0.RELEASE")
 
-  // this is needed to pick up SpringCoreIgnoredTypesConfigurer
-  testInstrumentation(project(":instrumentation:spring:spring-core-2.0:javaagent"))
-
   testInstrumentation(project(":instrumentation:netty:netty-4.1:javaagent"))
   testInstrumentation(project(":instrumentation:reactor:reactor-3.1:javaagent"))
   testInstrumentation(project(":instrumentation:reactor:reactor-netty:reactor-netty-1.0:javaagent"))
