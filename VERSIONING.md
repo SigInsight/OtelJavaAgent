@@ -1,80 +1,125 @@
-# OpenTelemetry Java Instrumentation Versioning
+# Buildable State Change List
 
-## Compatibility and telemetry stability requirements
+本文档记录本次对 `opentelemetry-java-instrumentation` 的裁剪、清理和编译修复结果。
 
-Artifacts in this repository follow the compatibility requirements described in the
-[OpenTelemetry Java versioning document](https://github.com/open-telemetry/opentelemetry-java/blob/main/VERSIONING.md#compatibility-requirements)
-and the OpenTelemetry specification
-[versioning and stability document](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/versioning-and-stability.md).
+## 目标
 
-For any stable artifact in this repository, public portions of the artifact must remain backward
-compatible, including public Java APIs and user-facing configuration. Backward-incompatible changes
-to stable artifacts are only allowed when incrementing the `MAJOR` version number, except for the
-following configuration changes:
+- 移除一批非核心异步 / 并发 / 响应式模块及相关基准模块
+- 清理构建、文档、测试中的残余引用
+- 保证项目在当前仓库状态下可以通过全量编译
 
-- Changes to configuration properties that contain the word `experimental` or `preview`.
-- Changes to configuration properties under the namespace `otel.javaagent.testing`.
+## 已移除的模块
 
-This means that:
+### benchmark
 
-- Changes to all other configuration properties are considered breaking changes.
-- Changes to telemetry produced by stable instrumentation artifacts in this repository are
-  considered breaking unless they are allowed by the OpenTelemetry specification
-  [Semantic Conventions Stability](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/versioning-and-stability.md#semantic-conventions-stability)
-  requirements. This repository uses those requirements to define breaking and non-breaking
-  telemetry changes for stable instrumentation artifacts.
+- `benchmark-jfr-analyzer`
 
-## Stable vs alpha
+### async / concurrency / reactive
 
-See <https://github.com/open-telemetry/opentelemetry-java/blob/main/VERSIONING.md#stable-vs-alpha>
+- `instrumentation/akka/akka-actor-2.3`
+- `instrumentation/akka/akka-actor-forkjoin-2.5`
+- `instrumentation/akka/akka-http-10.0`
+- `instrumentation/pekko/pekko-actor-1.0`
+- `instrumentation/pekko/pekko-http-1.0`
 
-IN PARTICULAR:
+### 本轮最终从工作区清理掉的残余目录
 
-Not all of our artifacts are published as stable artifacts - any non-stable artifact has the suffix
-`-alpha` on its version. NONE of the guarantees described above apply to alpha artifacts. They may
-require code or environment changes on every release and are not meant for consumption for users
-where versioning stability is important.
+- `instrumentation/failsafe-3.0`
+- `instrumentation/hystrix-1.4`
+- `instrumentation/guava-10.0`
+- `instrumentation/kotlinx-coroutines`
+- `instrumentation/scala-forkjoin-2.8`
 
-## Dropping support for older library versions
+说明：
 
-### Library instrumentation
+- 上述目录中，`akka* / pekko* / benchmark-jfr-analyzer` 已经完成源码级移除。
+- `failsafe / hystrix / guava / kotlinx-coroutines / scala-forkjoin` 在本次最终清理前仅剩未受 Git 管理的本地残留目录，已从工作区删除。
+- Kotlin 支持本身未移除，仓库仍保留 Kotlin 相关构建与测试模块。
 
-Bumping the minimum supported library version for library instrumentation is generally acceptable
-if there's a good reason because:
+## 已同步的构建与引用清理
 
-- Users of library instrumentation have to integrate the library instrumentation during build-time
-  of their application, and so have the option to bump the library version if they are using an
-  unsupported library version.
-- Users have the option of staying with the old version of library instrumentation, without being
-  pinned on an old version of the OpenTelemetry API and SDK.
-- Bumping the minimum library version changes the artifact name, so it is not technically a breaking
-  change.
+### settings / 构建入口
 
-### Javaagent instrumentation
+- `settings.gradle.kts`
+  - 已移除被删除模块的 `include(...)`
 
-The situation is much trickier for javaagent instrumentation:
+### 下游依赖引用
 
-- A common use case of the javaagent is applying instrumentation at deployment-time (including
-  to third-party applications), where bumping the library version is frequently not an option.
-- While users have the option of staying with the old version of javaagent, that pins them on
-  an old version of the OpenTelemetry API and SDK, which is problematic for the OpenTelemetry
-  ecosystem.
-- While bumping the minimum library version changes the instrumentation module name, it does not
-  change the "aggregated" javaagent artifact name which most users depend on, so could be considered
-  a breaking change for some users (though this is not a breaking change that we currently make any
-  guarantees about).
+- `instrumentation/ktor/ktor-2.0/javaagent/build.gradle.kts`
+- `instrumentation/ktor/ktor-3.0/javaagent/build.gradle.kts`
+- `instrumentation/cassandra/cassandra-3.0/javaagent/build.gradle.kts`
 
-For these reasons, bumping the minimum supported library version for a javaagent instrumentation
-requires more scrutiny and must be considered on a case-by-case basis.
+这些模块里对已删除 instrumentation 的项目依赖已清理。
 
-When there is functionality in a new library version that requires changes to the javaagent
-instrumentation which are incompatible with the current javaagent base library version, some options
-that do not require bumping the minimum supported library version include:
+## 已同步的文档与校验
 
-- Access the new functionality via reflection. This is a good technique only for very small changes.
-- Create a new javaagent instrumentation module to support the new library version. This requires
-  configuring non-overlapping versions in the muzzle check and applying `assertInverse` to confirm
-  that the two instrumentations are never be applied to the same library version (see
-  [class loader matchers](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/docs/contributing/writing-instrumentation-module.md#restrict-the-criteria-for-applying-the-instrumentation-by-extending-the-classloadermatcher-method)
-  for how to restrict instrumentations to specific library versions). If there's too much copy-paste
-  between the two javaagent instrumentation modules, a `-common` module can be extracted.
+- `docs/supported-libraries.md`
+- `docs/instrumentation-list.yaml`
+- `docs/contributing/documenting-instrumentation.md`
+- `instrumentation-docs/src/test/java/io/opentelemetry/instrumentation/docs/auditors/SupportedLibrariesAuditorTest.java`
+- `instrumentation-docs/src/test/java/io/opentelemetry/instrumentation/docs/auditors/SuppressionListAuditorTest.java`
+
+这些文件中的已删除模块条目和相关断言已同步更新。
+
+## 构建修复
+
+### 1. Gradle precompiled script plugin 兼容性修复
+
+为避免 Kotlin DSL accessor / precompiled script 在当前仓库状态下出现编译问题，做了以下源码级调整：
+
+- `gradle-plugins/src/main/kotlin/io.opentelemetry.instrumentation.muzzle-check.gradle.kts`
+  - 将 `tasks.jar`、`configurations.runtimeClasspath` 等 typed accessor 写法改为显式 API 调用
+  - 例如改用 `tasks.named<Jar>("jar")`、`configurations.named("runtimeClasspath")`
+
+- `gradle-plugins/src/main/kotlin/io.opentelemetry.instrumentation.muzzle-generation.gradle.kts`
+  - 将 `sourceSets.main`、`configurations.runtimeClasspath` 等 typed accessor 写法改为显式 `SourceSetContainer` / `named(...)` 访问
+
+目的：
+
+- 避免 Kotlin DSL 生成不稳定 accessor
+- 保持 `gradle-plugins:compileKotlin` 和根工程 clean 编译稳定
+
+### 2. conventions 对 muzzle 内部类型的编译期解耦
+
+- `conventions/src/main/kotlin/io.opentelemetry.instrumentation.base.gradle.kts`
+  - 去除对 `io.opentelemetry.javaagent.muzzle.AcceptableVersions` 的直接依赖
+  - 改为本地 `isStableVersion(version: String)` 判断
+
+- `conventions/src/main/kotlin/otel.resolve-latest-dep-versions.gradle.kts`
+  - 去除对 `AcceptableVersions` 和 `MuzzleExtension` 的直接编译期引用
+  - 使用本地 `isStableVersion(...)`
+  - 通过反射访问名为 `muzzle` 的 extension
+
+目的：
+
+- 降低 build logic 对 `muzzle` 实现细节的耦合
+- 保证 `conventions:compileKotlin` 可通过
+
+## 已验证结果
+
+已验证通过：
+
+- `./gradlew --no-daemon --console=plain -p gradle-plugins clean compileKotlin`
+- `./gradlew --no-daemon --console=plain --no-build-cache --no-configuration-cache clean compileJava compileTestJava`
+
+结论：
+
+- 当前仓库状态可编译
+- `gradle-plugins` / `conventions` / 根工程 clean 编译链路已打通
+
+## 当前仍保留但不属于本次移除范围
+
+- Kotlin 支持与 Kotlin 相关模块仍保留
+- `instrumentation/opentelemetry-extension-kotlin-1.0`
+- `instrumentation/spring/spring-data/spring-data-3.0/kotlin-testing`
+- 与 Kotlin / coroutines 相关的注释、测试依赖、说明文字仍可能存在，这是预期状态
+
+## 工作区附带变更
+
+当前还存在一个与本次可编译状态无直接冲突的工作区改动：
+
+- `.gitignore`
+  - 新增 `.kotlin/`
+  - 新增 `tmp/`
+
+此项不影响编译结果。

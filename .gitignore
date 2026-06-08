@@ -8,6 +8,7 @@ target
 #########
 !**/gradle/wrapper/*
 .gradle
+.kotlin/
 **/build/
 **/generated/
 examples/**/build/
@@ -60,6 +61,7 @@ replay_pid*
 .attach_pid*
 .telemetry*
 .lycheecache
+tmp/
 
 build-scan.txt
 
