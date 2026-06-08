@@ -2069,20 +2069,6 @@ libraries:
         type: STRING
       - name: url.full
         type: STRING
-- name: avaje-jex-3.0
-  display_name: Avaje Jex
-  description: |
-    This instrumentation does not emit telemetry on its own. Instead, it hooks into the Avaje Jex Context to extract the HTTP route and attach it to existing HTTP server spans and HTTP server metrics.
-  library_link: https://avaje.io/jex/
-  features:
-  - HTTP_ROUTE
-  source_path: instrumentation/avaje-jex-3.0
-  minimum_java_version: 21
-  scope:
-    name: io.opentelemetry.avaje-jex-3.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - io.avaje:avaje-jex:[3.0,)
 - name: aws-lambda-core-1.0
   display_name: AWS Lambda Core
   description: |
@@ -4651,36 +4637,6 @@ libraries:
   javaagent_target_versions:
   - com.twitter:finagle-http_2.12:[23.11.0,]
   - com.twitter:finagle-http_2.13:[23.11.0,]
-- name: finatra-2.9
-  display_name: Finatra
-  description: |
-    This instrumentation enriches HTTP server spans with route information, and enables controller spans for the Finatra web framework (controller spans are disabled by default).
-  library_link: https://github.com/twitter/finatra
-  features:
-  - HTTP_ROUTE
-  - CONTROLLER_SPANS
-  source_path: instrumentation/finatra-2.9
-  scope:
-    name: io.opentelemetry.finatra-2.9
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.twitter:finatra-http_2.11:[2.9.0,]
-  - com.twitter:finatra-http_2.12:[2.9.0,]
-  configurations:
-  - name: otel.instrumentation.common.experimental.controller-telemetry.enabled
-    declarative_name: java.common.controller_telemetry/development.enabled
-    description: Enables the creation of experimental controller spans.
-    type: boolean
-    default: false
-  telemetry:
-  - when: otel.instrumentation.common.experimental.controller-telemetry.enabled=true
-    spans:
-    - span_kind: INTERNAL
-      attributes:
-      - name: code.function
-        type: STRING
-      - name: code.namespace
-        type: STRING
 - name: geode-1.4
   display_name: Apache Geode
   description: This instrumentation enables database client spans and database client
@@ -7772,35 +7728,6 @@ libraries:
       - name: service.peer.name
         type: STRING
       - name: url.full
-        type: STRING
-- name: jfinal-3.2
-  display_name: JFinal
-  description: |
-    This instrumentation enriches HTTP server spans with route information, and enables controller spans for JFinal controller methods (controller spans are disabled by default).
-  library_link: https://github.com/jfinal/jfinal
-  features:
-  - HTTP_ROUTE
-  - CONTROLLER_SPANS
-  source_path: instrumentation/jfinal-3.2
-  scope:
-    name: io.opentelemetry.jfinal-3.2
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.jfinal:jfinal:[3.2,)
-  configurations:
-  - name: otel.instrumentation.common.experimental.controller-telemetry.enabled
-    declarative_name: java.common.controller_telemetry/development.enabled
-    description: Enables the creation of experimental controller spans.
-    type: boolean
-    default: false
-  telemetry:
-  - when: otel.instrumentation.common.experimental.controller-telemetry.enabled=true
-    spans:
-    - span_kind: INTERNAL
-      attributes:
-      - name: code.function
-        type: STRING
-      - name: code.namespace
         type: STRING
 - name: jms-1.1
   display_name: JMS (Java Message Service)
