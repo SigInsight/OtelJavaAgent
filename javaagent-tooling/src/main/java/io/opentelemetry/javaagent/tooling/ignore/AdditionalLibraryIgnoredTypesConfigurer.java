@@ -73,11 +73,7 @@ public class AdditionalLibraryIgnoredTypesConfigurer implements IgnoredTypesConf
         .ignoreClass("org.springframework.ui.")
         .ignoreClass("org.springframework.validation.");
 
-    builder
-        .ignoreClass("org.springframework.remoting.")
-        .allowClass("org.springframework.remoting.rmi.RmiBasedExporter")
-        .allowClass("org.springframework.remoting.rmi.RmiClientInterceptor")
-        .allowClass("org.springframework.remoting.rmi.RmiProxyFactoryBean");
+    builder.ignoreClass("org.springframework.remoting.");
 
     builder
         .ignoreClass("org.springframework.data.")

@@ -77,15 +77,6 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
   }
 
   @Test
-  void testJmxPrefix() {
-    DeclarativeConfigProperties config = createConfig("otel.jmx.enabled", "true");
-
-    assertThat(config.getStructured("java").getStructured("jmx").getBoolean("enabled"))
-        .isNotNull()
-        .isTrue();
-  }
-
-  @Test
   void testGeneralHttpListMapping() {
     DeclarativeConfigProperties config =
         createConfig("otel.instrumentation.http.client.capture-request-headers", "header1,header2");
@@ -214,21 +205,6 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
                 .getLong("flush_timeout"))
         .isEqualTo(30000L);
 
-    // special case: duration string
-    assertThat(
-            createConfig("otel.jmx.discovery.delay", "30s")
-                .getStructured("java")
-                .getStructured("jmx")
-                .getStructured("discovery")
-                .getLong("delay"))
-        .isEqualTo(30000L);
-    assertThat(
-            createConfig("otel.metric.export.interval", "30s")
-                .getStructured("java")
-                .getStructured("jmx")
-                .getStructured("discovery")
-                .getLong("delay"))
-        .isEqualTo(30000L);
   }
 
   @Test

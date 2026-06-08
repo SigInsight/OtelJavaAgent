@@ -68,7 +68,6 @@ public class GlobalIgnoredTypesConfigurer implements IgnoredTypesConfigurer {
         .allowClass("java.net.URL")
         .allowClass("java.net.HttpURLConnection")
         .allowClass("java.net.URLClassLoader")
-        .allowClass("java.rmi.")
         .allowClass("java.util.concurrent.")
         .allowClass("java.lang.reflect.Proxy")
         .allowClass("java.lang.ClassLoader")
@@ -96,8 +95,6 @@ public class GlobalIgnoredTypesConfigurer implements IgnoredTypesConfigurer {
     builder
         .ignoreClass("sun.")
         .allowClass("sun.net.www.protocol.")
-        .allowClass("sun.rmi.server")
-        .allowClass("sun.rmi.transport")
         .allowClass("sun.net.www.http.HttpClient")
         .allowClass("sun.net.httpserver.");
 

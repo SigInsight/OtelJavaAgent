@@ -71,23 +71,27 @@ class AgentDistributionConfigTest {
 
   @Test
   void testInstrumentationEnabledOrderMatters() {
-    // armeria is enabled, armeria_grpc is disabled
+    // spring-webflux is enabled, spring-web is disabled
     // first matching name wins (matches ConfigProperties behavior)
     AgentDistributionConfig config = AgentDistributionConfig.get();
 
-    // armeria-grpc listed first: disabled wins
+    // spring-web listed first: disabled wins
     assertThat(
             config.isInstrumentationEnabled(
-                asList("armeria-grpc", "armeria-grpc-1.14", "armeria", "armeria-1.14"), true))
+                asList("spring-web", "spring-web-6.0", "spring-webflux", "spring-webflux-5.0"),
+                true))
         .isFalse();
 
-    // armeria listed first: enabled wins
+    // spring-webflux listed first: enabled wins
     assertThat(
             config.isInstrumentationEnabled(
-                asList("armeria", "armeria-1.14", "armeria-grpc", "armeria-grpc-1.14"), true))
+                asList("spring-webflux", "spring-webflux-5.0", "spring-web", "spring-web-6.0"),
+                true))
         .isTrue();
 
-    // armeria alone should be enabled
-    assertThat(config.isInstrumentationEnabled(asList("armeria", "armeria-1.14"), true)).isTrue();
+    // spring-webflux alone should be enabled
+    assertThat(
+            config.isInstrumentationEnabled(asList("spring-webflux", "spring-webflux-5.0"), true))
+        .isTrue();
   }
 }
