@@ -8,6 +8,7 @@ import io.opentelemetry.javaagent.muzzle.AcceptableVersions
 import io.opentelemetry.javaagent.muzzle.MuzzleDirective
 import io.opentelemetry.javaagent.muzzle.MuzzleExtension
 import io.opentelemetry.javaagent.muzzle.matcher.MuzzleGradlePluginUtil
+import org.gradle.api.tasks.bundling.Jar
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
@@ -105,14 +106,17 @@ val muzzleBootstrap: Configuration by configurations.creating {
   isCanBeResolved = true
 }
 
-val shadowModule by tasks.registering(ShadowJar::class) {
-  from(zipTree(tasks.jar.get().archiveFile))
+val jarTask = tasks.named<Jar>("jar")
+val runtimeClasspath = configurations.named("runtimeClasspath")
 
-  configurations = listOf(project.configurations.runtimeClasspath.get())
+val shadowModule by tasks.registering(ShadowJar::class) {
+  from(zipTree(jarTask.flatMap { it.archiveFile }))
+
+  configurations = listOf(runtimeClasspath.get())
 
   archiveFileName.set("module-for-muzzle-check.jar")
 
-  dependsOn(tasks.jar)
+  dependsOn(jarTask)
 }
 
 val shadowMuzzleTooling by tasks.registering(ShadowJar::class) {

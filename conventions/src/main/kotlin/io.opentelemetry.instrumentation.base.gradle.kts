@@ -1,7 +1,6 @@
 /** Common setup for manual instrumentation of libraries and javaagent instrumentation. */
 
 import io.opentelemetry.instrumentation.gradle.OtelPropsExtension
-import io.opentelemetry.javaagent.muzzle.AcceptableVersions
 
 plugins {
   `java-library`
@@ -68,10 +67,32 @@ fun lookupPinnedVersion(group: String?, name: String, version: String?): String?
   )
 }
 
+fun isStableVersion(version: String): Boolean {
+  val versionString = version.lowercase()
+  val draftVersion = versionString.contains("rc")
+    || versionString.contains(".cr")
+    || versionString.contains("alpha")
+    || versionString.contains("beta")
+    || versionString.contains("-b")
+    || versionString.contains(".m")
+    || versionString.contains("-m")
+    || versionString.contains("-dev")
+    || versionString.contains("-ea")
+    || versionString.contains("-atlassian-")
+    || versionString.contains("public_draft")
+    || versionString.contains("snapshot")
+    || versionString.contains("test")
+    || versionString.endsWith("-nf-execution")
+    || versionString.startsWith("0.0.0-")
+    || Regex("^.*-[0-9a-f]{7,}$").matches(versionString)
+    || Regex("^\\d{4}-\\d{2}-\\d{2}t\\d{2}-\\d{2}-\\d{2}.*$").matches(versionString)
+  return !draftVersion
+}
+
 @CacheableRule
 abstract class TestLatestDepsRule : ComponentMetadataRule {
   override fun execute(context: ComponentMetadataContext) {
-    if (!AcceptableVersions.isStable(context.details.id.version)) {
+    if (!isStableVersion(context.details.id.version)) {
       context.details.status = "milestone"
     }
   }

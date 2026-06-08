@@ -100,16 +100,14 @@ corresponding instrumentation name: {{% /config_option %}}
 | ------------------------------------------------ | ------------------------------------------- |
 | Additional methods tracing                       | `methods`                                   |
 | Additional tracing annotations                   | `external-annotations`                      |
-| Akka Actor                                       | `akka-actor`                                |
-| Akka HTTP                                        | `akka-http`                                 |
 | Apache Axis2                                     | `axis2`                                     |
 """;
 
     var result = SuppressionListAuditor.parseDocumentationDisabledList(testFile);
-    assertThat(result).hasSize(5);
+    assertThat(result).hasSize(3);
     assertThat(result)
         .containsExactlyInAnyOrder(
-            "methods", "external-annotations", "akka-actor", "akka-http", "axis2");
+            "methods", "external-annotations", "axis2");
   }
 
   @Test
@@ -128,49 +126,18 @@ libraries:
     target_versions:
       javaagent:
       - io.activej:activej-http:[6.0,)
-  akka:
-  - name: akka-actor-2.3
-    source_path: instrumentation/akka/akka-actor-2.3
-    scope:
-      name: io.opentelemetry.akka-actor-2.3
-    target_versions:
-      javaagent:
-      - com.typesafe.akka:akka-actor_2.11:[2.3,)
-      - com.typesafe.akka:akka-actor_2.12:[2.3,)
-      - com.typesafe.akka:akka-actor_2.13:[2.3,)
-  - name: akka-actor-forkjoin-2.5
-    source_path: instrumentation/akka/akka-actor-forkjoin-2.5
-    scope:
-      name: io.opentelemetry.akka-actor-forkjoin-2.5
-    target_versions:
-      javaagent:
-      - com.typesafe.akka:akka-actor_2.12:[2.5,2.6)
-      - com.typesafe.akka:akka-actor_2.13:[2.5.23,2.6)
-      - com.typesafe.akka:akka-actor_2.11:[2.5,)
-  - name: akka-http-10.0
-    description: This instrumentation enables CLIENT and SERVER spans and metrics
-      for the Akka HTTP client and server.
-    source_path: instrumentation/akka/akka-http-10.0
-    scope:
-      name: io.opentelemetry.akka-http-10.0
 """;
     var result = SuppressionListAuditor.parseInstrumentationList(testList);
 
-    assertThat(result).hasSize(4);
-    assertThat(result)
-        .containsExactlyInAnyOrder(
-            "activej-http-6.0", "akka-actor-2.3", "akka-actor-forkjoin-2.5", "akka-http-10.0");
+    assertThat(result).hasSize(1);
+    assertThat(result).containsExactly("activej-http-6.0");
   }
 
   @Test
   void testIdentifyMissingItems() {
-    var documentationDisabledList = List.of("methods", "akka-actor", "akka-http");
+    var documentationDisabledList = List.of("methods");
     var instrumentationList =
-        List.of(
-            "methods",
-            "akka-actor-2.3",
-            "activej-http-6.0",
-            "akka-actor-forkjoin-2.5");
+        List.of("methods", "activej-http-6.0");
 
     var missingItems =
         SuppressionListAuditor.identifyMissingItems(documentationDisabledList, instrumentationList);
@@ -209,8 +176,6 @@ corresponding instrumentation name: {{% /config_option %}}
 | ------------------------------------------------ | ------------------------------------------- |
 | Additional methods tracing                       | `methods`                                   |
 | ActiveJ                                          | `activej-http`                              |
-| Akka Actor                                       | `akka-actor`                                |
-| Akka HTTP                                        | `akka-http`                                 |
 """;
   }
 
@@ -234,8 +199,6 @@ corresponding instrumentation name: {{% /config_option %}}
 | Library/Framework                                | Instrumentation name                        |
 | ------------------------------------------------ | ------------------------------------------- |
 | Additional methods tracing                       | `methods`                                   |
-| Akka Actor                                       | `akka-actor`                                |
-| Akka HTTP                                        | `akka-http`                                 |
 """;
   }
 
@@ -254,22 +217,6 @@ libraries:
     target_versions:
       javaagent:
       - io.activej:activej-http:[6.0,)
-  akka:
-  - name: akka-actor-2.3
-    source_path: instrumentation/akka/akka-actor-2.3
-    scope:
-      name: io.opentelemetry.akka-actor-2.3
-    target_versions:
-      javaagent:
-      - com.typesafe.akka:akka-actor_2.11:[2.3,)
-      - com.typesafe.akka:akka-actor_2.12:[2.3,)
-      - com.typesafe.akka:akka-actor_2.13:[2.3,)
-  - name: akka-http-10.0
-    description: This instrumentation enables CLIENT and SERVER spans and metrics
-      for the Akka HTTP client and server.
-    source_path: instrumentation/akka/akka-http-10.0
-    scope:
-      name: io.opentelemetry.akka-http-10.0
 """;
   }
 }

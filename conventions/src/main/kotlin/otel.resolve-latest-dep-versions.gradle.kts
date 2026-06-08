@@ -1,6 +1,26 @@
-import io.opentelemetry.javaagent.muzzle.AcceptableVersions
-import io.opentelemetry.javaagent.muzzle.MuzzleExtension
 import org.eclipse.aether.util.version.GenericVersionScheme
+
+fun isStableVersion(version: String): Boolean {
+  val versionString = version.lowercase()
+  val draftVersion = versionString.contains("rc")
+    || versionString.contains(".cr")
+    || versionString.contains("alpha")
+    || versionString.contains("beta")
+    || versionString.contains("-b")
+    || versionString.contains(".m")
+    || versionString.contains("-m")
+    || versionString.contains("-dev")
+    || versionString.contains("-ea")
+    || versionString.contains("-atlassian-")
+    || versionString.contains("public_draft")
+    || versionString.contains("snapshot")
+    || versionString.contains("test")
+    || versionString.endsWith("-nf-execution")
+    || versionString.startsWith("0.0.0-")
+    || Regex("^.*-[0-9a-f]{7,}$").matches(versionString)
+    || Regex("^\\d{4}-\\d{2}-\\d{2}t\\d{2}-\\d{2}-\\d{2}.*$").matches(versionString)
+  return !draftVersion
+}
 
 tasks {
   val resolveLatestDepVersions by registering {
@@ -37,8 +57,8 @@ tasks {
         if (existing == null) {
           versions[key] = version
         } else {
-          val existingStable = AcceptableVersions.isStable(existing)
-          val newStable = AcceptableVersions.isStable(version)
+          val existingStable = isStableVersion(existing)
+          val newStable = isStableVersion(version)
           // Prefer stable over pre-release even if numerically lower, so that a pre-release
           // already in the JSON (e.g. 5.7.0-beta1) gets replaced by the latest stable (5.6.4).
           if ((!existingStable && newStable) ||
@@ -63,7 +83,7 @@ tasks {
           // resolveStableVersion() to return null and fall back to a pre-release version.
           detached.isTransitive = false
           detached.resolutionStrategy.componentSelection.all {
-            if (!AcceptableVersions.isStable(candidate.version)) {
+            if (!isStableVersion(candidate.version)) {
               reject("pre-release version")
             }
           }
@@ -90,7 +110,7 @@ tasks {
                 if (requested is org.gradle.api.artifacts.component.ModuleComponentSelector) {
                   val reqVersion = requested.version
                   val selectedVersion = dep.selected.moduleVersion?.version ?: return@forEach
-                  val version = if (AcceptableVersions.isStable(selectedVersion)) selectedVersion
+                  val version = if (isStableVersion(selectedVersion)) selectedVersion
                     else resolveStableVersion(this@subprojects, requested.group, requested.module, reqVersion)
                     ?: selectedVersion // Fall back to pre-release if no stable version exists in range
                   if (reqVersion == "latest.release") {
@@ -119,16 +139,25 @@ tasks {
       // but many of these are never pulled into a testLatestDeps configuration.
       val muzzleArtifacts = mutableSetOf<String>()
       subprojects {
-        val muzzleExt = extensions.findByType<MuzzleExtension>()
-        if (muzzleExt != null) {
-          muzzleExt.directives.get().forEach { directive ->
-            if (directive.coreJdk.getOrElse(false)) return@forEach
-            val group = directive.group.orNull ?: return@forEach
-            val module = directive.module.orNull ?: return@forEach
-            // Skip template variables like play_$scalaVersion that can't be resolved statically
-            if (group.contains("\$") || module.contains("\$")) return@forEach
-            muzzleArtifacts.add("$group:$module")
-          }
+        val muzzleExt = extensions.findByName("muzzle") ?: return@subprojects
+        val directives = muzzleExt.javaClass.getMethod("getDirectives").invoke(muzzleExt)
+        val directiveList = directives.javaClass.getMethod("get").invoke(directives) as Iterable<*>
+        directiveList.forEach { directive ->
+          if (directive == null) return@forEach
+          val coreJdkProperty = directive.javaClass.getMethod("getCoreJdk").invoke(directive)
+          val isCoreJdk = coreJdkProperty.javaClass.getMethod("getOrElse", Any::class.java)
+            .invoke(coreJdkProperty, false) as Boolean
+          if (isCoreJdk) return@forEach
+
+          val groupProperty = directive.javaClass.getMethod("getGroup").invoke(directive)
+          val moduleProperty = directive.javaClass.getMethod("getModule").invoke(directive)
+          val group = groupProperty.javaClass.getMethod("getOrNull").invoke(groupProperty) as String?
+            ?: return@forEach
+          val module = moduleProperty.javaClass.getMethod("getOrNull").invoke(moduleProperty) as String?
+            ?: return@forEach
+          // Skip template variables like play_$scalaVersion that can't be resolved statically
+          if (group.contains("\$") || module.contains("\$")) return@forEach
+          muzzleArtifacts.add("$group:$module")
         }
       }
       muzzleArtifacts.forEach { coords ->

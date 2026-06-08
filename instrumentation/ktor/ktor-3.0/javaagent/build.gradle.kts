@@ -34,7 +34,6 @@ dependencies {
 
   testInstrumentation(project(":instrumentation:netty:netty-4.1:javaagent"))
   testInstrumentation(project(":instrumentation:ktor:ktor-2.0:javaagent"))
-  testInstrumentation(project(":instrumentation:kotlinx-coroutines:kotlinx-coroutines-1.0:javaagent"))
   testInstrumentation(project(":instrumentation:opentelemetry-extension-kotlin-1.0:javaagent"))
 
   testImplementation(project(":instrumentation:ktor:ktor-3.0:testing"))

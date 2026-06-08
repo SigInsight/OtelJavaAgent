@@ -1,6 +1,7 @@
 import java.net.URLConnection
 import net.bytebuddy.ClassFileVersion
 import net.bytebuddy.build.gradle.ByteBuddySimpleTask
+import org.gradle.api.tasks.SourceSetContainer
 
 plugins {
   `java-library`
@@ -32,11 +33,13 @@ val codegen by configurations.creating {
   isCanBeResolved = true
 }
 
-val sourceSet = sourceSets.main.get()
+val sourceSets = extensions.getByType<SourceSetContainer>()
+val sourceSet = sourceSets.named("main").get()
+val runtimeClasspath = configurations.named(sourceSet.runtimeClasspathConfigurationName)
 val inputClasspath = (sourceSet.output.resourcesDir?.let { codegen.plus(project.files(it)) }
   ?: codegen)
   .plus(sourceSet.output.dirs) // needed to support embedding shadowed modules into instrumentation
-  .plus(configurations.runtimeClasspath.get())
+  .plus(runtimeClasspath.get())
 
 // disable url connection caching to avoid java.util.zip.ZipException: ZipFile invalid LOC header (bad signature)
 // during byte buddy plugin discovery when muzzle jar has changed
