@@ -256,13 +256,12 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
 
   @Test
   void testUnderscoreToDashConversion() {
-    DeclarativeConfigProperties config =
-        createConfig("otel.instrumentation.spring-scheduling.test-property", "value");
+    DeclarativeConfigProperties config = createConfig("otel.instrumentation.spring-web.test-property", "value");
 
     assertThat(
             config
                 .getStructured("java")
-                .getStructured("spring_scheduling")
+                .getStructured("spring_web")
                 .getString("test_property"))
         .isEqualTo("value");
   }

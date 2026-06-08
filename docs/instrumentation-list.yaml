@@ -188,23 +188,6 @@ libraries:
       Opt-in to emit stable semantic conventions instead of the old experimental semantic conventions. Accepts a comma-separated list of semantic convention groups (e.g., `database`, `http`, `messaging`). Use `<group>/dup` to emit both old and new conventions simultaneously. Stable semantic conventions will become the default in version 3.0 of the agent.
     type: list
     default: ''
-- name: apache-elasticjob-3.0
-  display_name: Apache ElasticJob
-  description: This instrumentation enables spans for Apache ElasticJob job executions.
-  library_link: https://shardingsphere.apache.org/elasticjob/
-  source_path: instrumentation/apache-elasticjob-3.0
-  scope:
-    name: io.opentelemetry.apache-elasticjob-3.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.apache.shardingsphere.elasticjob:elasticjob-lite-core:[3.0.0,)
-  configurations:
-  - name: otel.instrumentation.apache-elasticjob.experimental-span-attributes
-    declarative_name: java.apache_elasticjob.experimental_span_attributes/development
-    description: |
-      Enables experimental span attributes `job.system`, `scheduling.apache-elasticjob.job.name`, `scheduling.apache-elasticjob.task.id`, `scheduling.apache-elasticjob.sharding.item.index`, `scheduling.apache-elasticjob.sharding.total.count`, `scheduling.apache-elasticjob.sharding.item.parameter`, and `scheduling.apache-elasticjob.job.type`.
-    type: boolean
-    default: false
 - name: apache-httpasyncclient-4.1
   display_name: Apache HttpAsyncClient
   description: This instrumentation enables HTTP client spans and HTTP client metrics
@@ -3748,23 +3731,6 @@ libraries:
       attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
     type: list
     default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
-- name: powerjob-4.0
-  display_name: PowerJob
-  description: This instrumentation enables spans for PowerJob job processor executions.
-  library_link: https://github.com/PowerJob/PowerJob
-  source_path: instrumentation/powerjob-4.0
-  scope:
-    name: io.opentelemetry.powerjob-4.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - tech.powerjob:powerjob-worker:[4.0.0,)
-  configurations:
-  - name: otel.instrumentation.powerjob.experimental-span-attributes
-    declarative_name: java.powerjob.experimental_span_attributes/development
-    description: |
-      Enables experimental span attributes `job.system`, `scheduling.powerjob.job.id`, `scheduling.powerjob.job.param`, `scheduling.powerjob.job.instance.param`, and `scheduling.powerjob.job.type`.
-    type: boolean
-    default: false
 - name: quarkus-resteasy-reactive-1.11
   display_name: Quarkus RESTEasy Reactive
   description: |
@@ -3779,23 +3745,6 @@ libraries:
   javaagent_target_versions:
   - io.quarkus:quarkus-rest:[3.9.0,)
   - io.quarkus:quarkus-resteasy-reactive:(,3.9.0)
-- name: quartz-2.0
-  display_name: Quartz
-  description: This instrumentation enables spans for Quartz job execution.
-  library_link: https://www.quartz-scheduler.org/
-  source_path: instrumentation/quartz-2.0
-  scope:
-    name: io.opentelemetry.quartz-2.0
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.quartz-scheduler:quartz:[2.0.0,)
-  configurations:
-  - name: otel.instrumentation.quartz.experimental-span-attributes
-    declarative_name: java.quartz.experimental_span_attributes/development
-    description: Enables the experimental `job.system` span attribute.
-    type: boolean
-    default: false
 - name: r2dbc-1.0
   display_name: R2DBC
   description: |
@@ -4238,36 +4187,6 @@ libraries:
       after the opening `<head>` tag.
     type: string
     default: ''
-- name: spring-batch-3.0
-  display_name: Spring Batch
-  description: |
-    This instrumentation enables spans for Spring Batch job execution, including job, step, and chunk processing.
-  library_link: https://spring.io/projects/spring-batch
-  disabled_by_default: true
-  source_path: instrumentation/spring/spring-batch-3.0
-  scope:
-    name: io.opentelemetry.spring-batch-3.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.springframework.batch:spring-batch-core:[3.0.0.RELEASE,5)
-  configurations:
-  - name: otel.instrumentation.spring-batch.experimental-span-attributes
-    declarative_name: java.spring_batch.experimental_span_attributes/development
-    description: Adds the experimental attribute `job.system` to spans.
-    type: boolean
-    default: false
-  - name: otel.instrumentation.spring-batch.experimental.chunk.new-trace
-    declarative_name: java.spring_batch.chunk/development.new_trace
-    description: When enabled, a new root span will be created for each chunk processing.
-      Please note that this may lead to a high number of spans being created.
-    type: boolean
-    default: false
-  - name: otel.instrumentation.spring-batch.item.enabled
-    declarative_name: java.spring_batch.item.enabled
-    description: When enabled, spans will be created for each item processed. Please
-      note that this may lead to a high number of spans being created.
-    type: boolean
-    default: false
 - name: spring-boot-actuator-autoconfigure-2.0
   source_path: instrumentation/spring/spring-boot-actuator-autoconfigure-2.0
   scope:
@@ -4331,23 +4250,6 @@ libraries:
   source_path: instrumentation/spring/spring-integration-4.1
   scope:
     name: io.opentelemetry.spring-integration-4.1
-- name: spring-scheduling-3.1
-  display_name: Spring Scheduling
-  description: This instrumentation enables tracing for Spring Scheduling tasks.
-  library_link: https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/scheduling/package-summary.html
-  source_path: instrumentation/spring/spring-scheduling-3.1
-  scope:
-    name: io.opentelemetry.spring-scheduling-3.1
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.springframework:spring-context:[3.1.0.RELEASE,]
-  configurations:
-  - name: otel.instrumentation.spring-scheduling.experimental-span-attributes
-    declarative_name: java.spring_scheduling.experimental_span_attributes/development
-    description: Adds the experimental span attribute `job.system` with the value
-      `spring_scheduling`.
-    type: boolean
-    default: false
 - name: spring-security-config-6.0
   display_name: Spring Security
   description: |
@@ -5012,57 +4914,6 @@ libraries:
   source_path: instrumentation/wicket-8.0
   scope:
     name: io.opentelemetry.wicket-8.0
-- name: xxl-job-1.9.2
-  display_name: XXL-Job
-  description: This instrumentation enables spans for XXL-Job task executions.
-  library_link: https://github.com/xuxueli/xxl-job
-  source_path: instrumentation/xxl-job/xxl-job-1.9.2
-  scope:
-    name: io.opentelemetry.xxl-job-1.9.2
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.xuxueli:xxl-job-core:[1.9.2, 2.1.2)
-  configurations:
-  - name: otel.instrumentation.xxl-job.experimental-span-attributes
-    declarative_name: java.xxl_job.experimental_span_attributes/development
-    description: |
-      Enables experimental span attributes `job.system`, `scheduling.xxl-job.glue.type`, and `scheduling.xxl-job.job.id`.
-    type: boolean
-    default: false
-- name: xxl-job-2.1.2
-  display_name: XXL-Job
-  description: This instrumentation enables spans for XXL-Job task executions.
-  library_link: https://github.com/xuxueli/xxl-job
-  source_path: instrumentation/xxl-job/xxl-job-2.1.2
-  scope:
-    name: io.opentelemetry.xxl-job-2.1.2
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.xuxueli:xxl-job-core:[2.1.2,2.3.0)
-  configurations:
-  - name: otel.instrumentation.xxl-job.experimental-span-attributes
-    declarative_name: java.xxl_job.experimental_span_attributes/development
-    description: |
-      Enables experimental span attributes `job.system`, `scheduling.xxl-job.glue.type`, and `scheduling.xxl-job.job.id`.
-    type: boolean
-    default: false
-- name: xxl-job-2.3.0
-  display_name: XXL-Job
-  description: This instrumentation enables spans for XXL-Job task executions.
-  library_link: https://github.com/xuxueli/xxl-job
-  source_path: instrumentation/xxl-job/xxl-job-2.3.0
-  scope:
-    name: io.opentelemetry.xxl-job-2.3.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.xuxueli:xxl-job-core:[2.3.0,)
-  configurations:
-  - name: otel.instrumentation.xxl-job.experimental-span-attributes
-    declarative_name: java.xxl_job.experimental_span_attributes/development
-    description: |
-      Enables experimental span attributes `job.system`, `scheduling.xxl-job.glue.type`, and `scheduling.xxl-job.job.id`.
-    type: boolean
-    default: false
 - name: zio-2.0
   display_name: ZIO
   description: |
