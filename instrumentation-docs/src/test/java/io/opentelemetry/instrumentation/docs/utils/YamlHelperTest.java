@@ -68,12 +68,12 @@ class YamlHelperTest {
 
     modules.add(
         new InstrumentationModule.Builder()
-            .srcPath("instrumentation/struts/struts-2.3")
-            .instrumentationName("struts-2.3")
-            .namespace("struts")
-            .targetVersions(Set.of("org.apache.struts:struts2-core:2.1.0"))
+            .srcPath("instrumentation/example-1.0")
+            .instrumentationName("example-1.0")
+            .namespace("example")
+            .targetVersions(Set.of("com.example:example-core:1.0.0"))
             .hasStandaloneLibrary(true)
-            .group("struts")
+            .group("example")
             .build());
 
     StringWriter stringWriter = new StringWriter();
@@ -85,6 +85,13 @@ class YamlHelperTest {
     String expectedYaml =
         """
         libraries:
+        - name: example-1.0
+          source_path: instrumentation/example-1.0
+          scope:
+            name: io.opentelemetry.example-1.0
+          has_standalone_library: true
+          javaagent_target_versions:
+          - com.example:example-core:1.0.0
         - name: spring-web-6.0
           display_name: Spring Web
           description: Spring Web 6.0 instrumentation
@@ -102,13 +109,6 @@ class YamlHelperTest {
               version.major: 6
           javaagent_target_versions:
           - org.springframework:spring-web:[6.0.0,)
-        - name: struts-2.3
-          source_path: instrumentation/struts/struts-2.3
-          scope:
-            name: io.opentelemetry.struts-2.3
-          has_standalone_library: true
-          javaagent_target_versions:
-          - org.apache.struts:struts2-core:2.1.0
         """;
 
     assertThat(expectedYaml).isEqualTo(stringWriter.toString());
