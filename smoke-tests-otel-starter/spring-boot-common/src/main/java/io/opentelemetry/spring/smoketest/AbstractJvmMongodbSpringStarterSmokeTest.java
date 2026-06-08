@@ -17,7 +17,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.mongodb.MongoDBContainer;
 
-/** Spring has a test container integration, but that doesn't work for Spring Boot 2 */
+/** Uses ApplicationContextRunner to keep Mongo starter assertions isolated from full app startup. */
 public abstract class AbstractJvmMongodbSpringStarterSmokeTest
     extends AbstractMongodbSpringStarterSmokeTest {
 

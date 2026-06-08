@@ -31,8 +31,6 @@ dependencies {
 
   testInstrumentation(project(":instrumentation:apache-httpclient:apache-httpclient-2.0:javaagent"))
   testInstrumentation(project(":instrumentation:servlet:servlet-3.0:javaagent"))
-  testInstrumentation(project(":instrumentation:aws-sdk:aws-sdk-1.11:javaagent"))
-
   testInstrumentation(project(":instrumentation:cassandra:cassandra-3.0:javaagent"))
 
   testImplementation("org.apache.camel:camel-core:$camelversion")
@@ -71,8 +69,6 @@ dependencies {
 
 tasks {
   withType<Test>().configureEach {
-    jvmArgs("-Dotel.instrumentation.aws-sdk.experimental-span-attributes=true")
-
     // TODO: fix camel instrumentation so that it uses semantic attributes extractors
     jvmArgs("-Dotel.instrumentation.experimental.span-suppression-strategy=span-kind")
 

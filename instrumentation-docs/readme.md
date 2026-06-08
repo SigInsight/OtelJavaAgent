@@ -81,15 +81,14 @@ Using these structures as examples:
 │   │   ├── jaxrs-2.0
 │   ├── spring
 │   │   ├── spring-cloud-gateway
-│   │   │   ├── spring-cloud-gateway-2.0
-│   │   │   ├── spring-cloud-gateway-2.2
+│   │   │   ├── spring-cloud-gateway-webmvc-4.3
 │   │   │   └── spring-cloud-gateway-common
 ```
 
 Results in the following:
 
 * Name - the full name of the instrumentation module
-  * `clickhouse-client-05`, `jaxrs-1.0`, `spring-cloud-gateway-2.0`
+  * `clickhouse-client-05`, `jaxrs-1.0`, `spring-cloud-gateway-webmvc-4.3`
 * Namespace - direct parent. if none, use name and strip version
   * `clickhouse-client`, `jaxrs`, `spring-cloud-gateway`
 * Group - top most parent

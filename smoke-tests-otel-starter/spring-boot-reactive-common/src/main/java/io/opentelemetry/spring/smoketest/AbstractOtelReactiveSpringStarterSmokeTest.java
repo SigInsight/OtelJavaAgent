@@ -26,7 +26,6 @@ import org.springframework.web.reactive.function.client.WebClient;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class AbstractOtelReactiveSpringStarterSmokeTest extends AbstractSpringStarterSmokeTest {
 
-  // can't use @LocalServerPort annotation since it moved packages between Spring Boot 2 and 3
   @Value("${local.server.port}")
   int serverPort;
 

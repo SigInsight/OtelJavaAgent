@@ -31,9 +31,6 @@ import org.springframework.web.client.RestTemplate;
     properties = {
       // The headers are simply set here to make sure that headers can be parsed
       "otel.exporter.otlp.headers.c=3",
-      "otel.instrumentation.runtime-telemetry.emit-experimental-metrics=true",
-      "otel.instrumentation.runtime-telemetry.emit-experimental-jfr-metrics=true",
-      "otel.instrumentation.runtime-telemetry.experimental.prefer-jfr=true",
       "otel.instrumentation.common.thread_details.enabled=true",
       "logging.level.org.springframework.boot.autoconfigure=DEBUG",
     })
@@ -43,11 +40,6 @@ class OtelSpringStarterSmokeTest extends AbstractOtelSpringStarterSmokeTest {
   @Autowired protected TestRestTemplate testRestTemplate;
   @Autowired private RestTemplateBuilder restTemplateBuilder;
   @Autowired private RestClient.Builder restClientBuilder;
-
-  @Override
-  protected boolean preferJfr() {
-    return true;
-  }
 
   @Override
   void makeClientCall() {

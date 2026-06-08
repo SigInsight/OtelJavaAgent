@@ -9,8 +9,6 @@ dependencies {
   testInstrumentation(project(":instrumentation:r2dbc-1.0:javaagent"))
   testInstrumentation(project(":instrumentation:reactor:reactor-3.1:javaagent"))
   testInstrumentation(project(":instrumentation:spring:spring-core-2.0:javaagent"))
-  testInstrumentation(project(":instrumentation:spring:spring-data:spring-data-1.8:javaagent"))
-
   testLibrary("org.springframework.data:spring-data-r2dbc:3.0.0")
 
   testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.8.1")

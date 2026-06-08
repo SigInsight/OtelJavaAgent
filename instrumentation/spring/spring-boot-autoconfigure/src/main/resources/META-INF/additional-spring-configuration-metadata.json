@@ -387,24 +387,6 @@
       "defaultValue": false
     },
     {
-      "name": "otel.instrumentation.kafka.enabled",
-      "type": "java.lang.Boolean",
-      "description": "Enable the Kafka instrumentation.",
-      "defaultValue": true
-    },
-    {
-      "name": "otel.instrumentation.kafka.experimental-span-attributes",
-      "type": "java.lang.Boolean",
-      "description": "Enable the capture of experimental Kafka span attributes.",
-      "defaultValue": false
-    },
-    {
-      "name": "otel.instrumentation.kafka.autoconfigure-interceptor",
-      "type": "java.lang.Boolean",
-      "description": "Enable automatic configuration of tracing interceptors on <code>ConcurrentKafkaListenerContainerFactory</code> using a <code>BeanPostProcessor</code>. You may disable this if you wish to manually configure these interceptors.",
-      "defaultValue": true
-    },
-    {
       "name": "otel.instrumentation.mongo.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable the Mongo client instrumentation.",
@@ -516,12 +498,6 @@
       "defaultValue": "trace_flags"
     },
     {
-      "name": "otel.instrumentation.micrometer.enabled",
-      "type": "java.lang.Boolean",
-      "description": "Enable the Micrometer instrumentation.",
-      "defaultValue": false
-    },
-    {
       "name": "otel.instrumentation.r2dbc.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable the R2DBC (reactive JDBC) instrumentation.",
@@ -532,36 +508,6 @@
       "type": "java.lang.Boolean",
       "description": "Enables the DB query sanitization.",
       "defaultValue": true
-    },
-    {
-      "name": "otel.instrumentation.runtime-telemetry.capture-gc-cause",
-      "type": "java.lang.Boolean",
-      "description": "Enable the capture of the jvm.gc.cause attribute with the jvm.gc.duration metric.",
-      "defaultValue": false
-    },
-    {
-      "name": "otel.instrumentation.runtime-telemetry.enabled",
-      "type": "java.lang.Boolean",
-      "description": "Enable runtime telemetry metrics.",
-      "defaultValue": true
-    },
-    {
-      "name": "otel.instrumentation.runtime-telemetry.emit-experimental-metrics",
-      "type": "java.lang.Boolean",
-      "description": "Enable the capture of experimental JMX-based metrics.",
-      "defaultValue": false
-    },
-    {
-      "name": "otel.instrumentation.runtime-telemetry.emit-experimental-jfr-metrics",
-      "type": "java.lang.Boolean",
-      "description": "Enable the capture of experimental JFR-based metrics on Java 17+.",
-      "defaultValue": false
-    },
-    {
-      "name": "otel.instrumentation.runtime-telemetry.experimental.prefer-jfr",
-      "type": "java.lang.Boolean",
-      "description": "Prefer JFR over JMX for metrics available from both sources, on Java 17+.",
-      "defaultValue": false
     },
     {
       "name": "otel.instrumentation.sanitization.url.experimental.sensitive-query-parameters",

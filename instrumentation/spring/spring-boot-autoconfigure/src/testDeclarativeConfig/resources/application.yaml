@@ -10,7 +10,6 @@ otel:
               endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces # to test that we can use env vars in declarative config
 
   # very lightweight test to make sure the declarative config is loaded
-  # the full config is tested in smoke-tests-otel-starter/spring-boot-2/src/testDeclarativeConfig
   instrumentation/development:
     java:
       foo:
@@ -26,4 +25,3 @@ otel:
         double_key: 3.14
         double_key_with_env: ${DOUBLE_ENV:2.71}
         double_key_with_env_quoted: "${DOUBLE_ENV:1.61}"
-

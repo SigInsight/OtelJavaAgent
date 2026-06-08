@@ -26,7 +26,6 @@ import static io.opentelemetry.semconv.incubating.CodeIncubatingAttributes.CODE_
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
 import static io.opentelemetry.semconv.incubating.ThreadIncubatingAttributes.THREAD_ID;
 import static io.opentelemetry.semconv.incubating.ThreadIncubatingAttributes.THREAD_NAME;
-import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,14 +39,11 @@ import io.opentelemetry.instrumentation.spring.autoconfigure.internal.properties
 import io.opentelemetry.instrumentation.spring.autoconfigure.internal.properties.OtelSpringProperties;
 import io.opentelemetry.instrumentation.spring.autoconfigure.internal.properties.OtlpExporterProperties;
 import io.opentelemetry.instrumentation.spring.autoconfigure.internal.properties.SpringConfigProperties;
-import io.opentelemetry.instrumentation.test.utils.GcUtils;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
 import io.opentelemetry.sdk.autoconfigure.spi.internal.DefaultConfigProperties;
 import io.opentelemetry.sdk.logs.data.LogRecordData;
 import io.opentelemetry.sdk.resources.Resource;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
@@ -57,7 +53,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.condition.OS;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -89,11 +84,6 @@ abstract class AbstractOtelSpringStarterSmokeTest extends AbstractSpringStarterS
 
   abstract void restTemplateCall(String path);
 
-  protected boolean preferJfr() {
-    return false;
-  }
-
-  // can't use @LocalServerPort annotation since it moved packages between Spring Boot 2 and 3
   @Value("${local.server.port}")
   protected int port;
 
@@ -226,35 +216,10 @@ abstract class AbstractOtelSpringStarterSmokeTest extends AbstractSpringStarterS
         OtelSpringStarterSmokeTestController.TEST_HISTOGRAM,
         AbstractIterableAssert::isNotEmpty);
 
-    // Runtime metrics - test one per JMX/JFR source
-    List<String> runtimeMetrics =
-        new ArrayList<>(asList("jvm.thread.count", "jvm.memory.used", "jvm.memory.init"));
-
-    double javaVersion = Double.parseDouble(System.getProperty("java.specification.version"));
-    // See https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/13503
-    // Also not available on Windows (getSystemLoadAverage returns -1)
-    // Not available when prefer-jfr is enabled (JMX-only metric with no JFR equivalent)
-    if (javaVersion < 23 && !OS.WINDOWS.isCurrentOs() && !preferJfr()) {
-      runtimeMetrics.add("jvm.system.cpu.load_1m");
-    }
-
-    boolean nativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
-    if (!nativeImage) {
-      // GraalVM native image does not support buffer pools - have to investigate why
-      runtimeMetrics.add("jvm.buffer.memory.used");
-    }
-    runtimeMetrics.forEach(
-        metricName ->
-            testing.waitAndAssertMetrics(
-                "io.opentelemetry.runtime-telemetry",
-                metricName,
-                AbstractIterableAssert::isNotEmpty));
-
-    assertAdditionalMetrics();
-
     // Log
     List<LogRecordData> exportedLogRecords = testing.getExportedLogRecords();
     assertThat(exportedLogRecords).isNotEmpty();
+    boolean nativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
     if (!nativeImage) {
       // log records differ in native image mode due to different startup timing
       Optional<LogRecordData> firstInfo =
@@ -278,48 +243,6 @@ abstract class AbstractOtelSpringStarterSmokeTest extends AbstractSpringStarterS
             .containsEntry(CODE_NAMESPACE, "org.springframework.boot.StartupInfoLogger")
             .containsEntry(CODE_FUNCTION, "logStarting");
       }
-    }
-  }
-
-  protected void assertAdditionalMetrics() throws InterruptedException, TimeoutException {
-    if (!isFlightRecorderAvailable()) {
-      return;
-    }
-
-    // force gc so we'd get the jvm.gc.duration metric
-    GcUtils.awaitGc(Duration.ofSeconds(10));
-
-    double javaVersion = Double.parseDouble(System.getProperty("java.specification.version"));
-    // JFR based metrics
-    // Note: jvm.network.io is intentionally omitted because it is flaky across all JDK versions.
-    for (String metric :
-        asList(
-            "jvm.cpu.count",
-            "jvm.buffer.count",
-            "jvm.class.count",
-            "jvm.cpu.context_switch",
-            "jvm.cpu.longlock",
-            "jvm.system.cpu.utilization",
-            "jvm.gc.duration",
-            "jvm.memory.init",
-            "jvm.memory.used",
-            "jvm.memory.allocation",
-            "jvm.thread.count")) {
-      // cpu longlock is missing on jdk 25
-      if (javaVersion >= 25 && "jvm.cpu.longlock".equals(metric)) {
-        continue;
-      }
-      testing.waitAndAssertMetrics(
-          "io.opentelemetry.runtime-telemetry", metric, AbstractIterableAssert::isNotEmpty);
-    }
-  }
-
-  private static boolean isFlightRecorderAvailable() {
-    try {
-      return (boolean)
-          Class.forName("jdk.jfr.FlightRecorder").getMethod("isAvailable").invoke(null);
-    } catch (ReflectiveOperationException ignored) {
-      return false;
     }
   }
 

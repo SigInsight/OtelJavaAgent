@@ -15,7 +15,6 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
   runtimeOnly("com.h2database:h2")
   implementation("org.apache.commons:commons-dbcp2")
-  implementation("org.springframework.kafka:spring-kafka")
   implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
   implementation("org.springframework.boot:spring-boot-starter-aop")
   implementation(platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES))

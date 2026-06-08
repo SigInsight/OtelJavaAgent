@@ -52,9 +52,7 @@ public abstract class AbstractSpringStarterSmokeTest {
   @BeforeEach
   void setUpTesting() {
     if (openTelemetry != null) {
-      // @Autowired doesn't work in all tests, e.g. AbstractJvmKafkaSpringStarterSmokeTest
-      // those tests have to manage the testing instance,
-      // themselves because they don't use @SpringBootTest
+      // Some tests don't use @SpringBootTest and manage the testing instance themselves.
       testing = new SpringSmokeTestRunner(openTelemetry);
     }
   }
@@ -63,7 +61,6 @@ public abstract class AbstractSpringStarterSmokeTest {
   void checkSpringLogs(CapturedOutput output) {
     // warnings are emitted if the auto-configuration have non-fatal problems
     assertThat(output)
-        // not a warning in Spring Boot 2
         .doesNotContain("is not eligible for getting processed by all BeanPostProcessors")
         // only look for WARN and ERROR log level, e.g. [Test worker] WARN
         .satisfies(
