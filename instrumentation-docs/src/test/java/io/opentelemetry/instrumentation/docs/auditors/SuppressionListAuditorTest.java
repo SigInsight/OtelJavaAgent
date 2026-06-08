@@ -103,14 +103,13 @@ corresponding instrumentation name: {{% /config_option %}}
 | Akka Actor                                       | `akka-actor`                                |
 | Akka HTTP                                        | `akka-http`                                 |
 | Apache Axis2                                     | `axis2`                                     |
-| Apache Camel                                     | `camel`                                     |
 """;
 
     var result = SuppressionListAuditor.parseDocumentationDisabledList(testFile);
-    assertThat(result).hasSize(6);
+    assertThat(result).hasSize(5);
     assertThat(result)
         .containsExactlyInAnyOrder(
-            "methods", "external-annotations", "akka-actor", "akka-http", "axis2", "camel");
+            "methods", "external-annotations", "akka-actor", "akka-http", "axis2");
   }
 
   @Test
@@ -171,13 +170,12 @@ libraries:
             "methods",
             "akka-actor-2.3",
             "activej-http-6.0",
-            "akka-actor-forkjoin-2.5",
-            "camel-2.20");
+            "akka-actor-forkjoin-2.5");
 
     var missingItems =
         SuppressionListAuditor.identifyMissingItems(documentationDisabledList, instrumentationList);
-    assertThat(missingItems).hasSize(2);
-    assertThat(missingItems).containsExactlyInAnyOrder("camel", "activej-http");
+    assertThat(missingItems).hasSize(1);
+    assertThat(missingItems).containsExactly("activej-http");
   }
 
   @Test
