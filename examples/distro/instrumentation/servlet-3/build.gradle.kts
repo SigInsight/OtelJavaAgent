@@ -30,7 +30,6 @@ dependencies {
   add("muzzleTooling", "io.opentelemetry.javaagent:opentelemetry-javaagent-tooling:$opentelemetryJavaagentAlphaVersion")
 
   testInstrumentation("io.opentelemetry.javaagent.instrumentation:opentelemetry-javaagent-servlet-common:$opentelemetryJavaagentAlphaVersion")
-  testInstrumentation("io.opentelemetry.javaagent.instrumentation:opentelemetry-javaagent-servlet-2.2:$opentelemetryJavaagentAlphaVersion")
   testInstrumentation("io.opentelemetry.javaagent.instrumentation:opentelemetry-javaagent-servlet-3.0:$opentelemetryJavaagentAlphaVersion")
 
   testImplementation("io.opentelemetry.javaagent:opentelemetry-testing-common") {

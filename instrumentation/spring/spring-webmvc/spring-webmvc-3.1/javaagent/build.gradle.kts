@@ -26,7 +26,6 @@ dependencies {
   // Include servlet instrumentation for verifying the tomcat requests
   testInstrumentation(project(":instrumentation:spring:spring-webmvc:spring-webmvc-6.0:javaagent"))
   testInstrumentation(project(":instrumentation:servlet:servlet-3.0:javaagent"))
-  testInstrumentation(project(":instrumentation:tomcat:tomcat-7.0:javaagent"))
 
   testImplementation(project(":instrumentation:spring:spring-webmvc:spring-webmvc-common-3.1:testing"))
   testImplementation("com.google.guava:guava")

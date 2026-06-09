@@ -56,19 +56,18 @@ public class AsyncGreetingServlet extends HttpServlet {
     CountDownLatch latch = null;
     System.err.println("start async request");
     AsyncContext ac = req.startAsync(req, resp);
-    boolean isPayara =
+    boolean requiresDispatchLatch =
         "org.apache.catalina.connector.AsyncContextImpl".equals(ac.getClass().getName());
-    if (isPayara) {
+    if (requiresDispatchLatch) {
       latch = new CountDownLatch(1);
       req.setAttribute(LATCH_KEY, latch);
     }
     System.err.println("add async request to queue");
     jobQueue.add(ac);
     System.err.println("async request added to queue");
-    // Payara has a race condition between exiting from servlet and calling AsyncContext.dispatch
-    // from background thread which can result in dispatch not happening. To work around this we
-    // wait on payara for the dispatch call and only after that exit from servlet code.
-    if (isPayara) {
+    // Some containers require the servlet thread to wait until background dispatch has been
+    // triggered, otherwise async dispatch can be skipped due to a container race.
+    if (requiresDispatchLatch) {
       try {
         latch.await(30, SECONDS);
         System.err.println("latch released");

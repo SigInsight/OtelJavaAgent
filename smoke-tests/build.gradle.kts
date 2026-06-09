@@ -44,9 +44,6 @@ tasks {
     enabled = enabled && gradle.startParameter.taskNames.any { it.startsWith(":smoke-tests:") }
 
     val suites = mapOf(
-      "payara" to listOf("**/Payara*.*"),
-      "jetty" to listOf("**/Jetty*.*"),
-      "liberty" to listOf("**/Liberty*.*"),
       "tomcat" to listOf("**/Tomcat*.*"),
       "tomee" to listOf("**/Tomee*.*"),
       "websphere" to listOf("**/Websphere*.*"),

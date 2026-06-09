@@ -19,7 +19,6 @@ They are divided into the following sub-modules:
 - Version-specific modules contain the version-specific instrumentations and request/response
   accessor.
   - `servlet-common-javax` contains instrumentations common for Servlet API versions `[2.2, 5)`
-  - `servlet-2.2` contains instrumentation for Servlet API versions `[2.2, 3)`
   - `servlet-3.0` contains instrumentation for Servlet API versions `[3.0, 5)`
   - `servlet-5.0` contains instrumentation for Servlet API versions `[5,)`
 
@@ -54,13 +53,13 @@ Everything starts when HTTP request processing reaches the first class from Serv
 In the example above this is the
 `OncePerRequestFilter.doFilter(ServletRequest, ServletResponse, FilterChain)` method.
 Let us call this first servlet specific method an "entry point".
-This is the main target for `Servlet3Instrumentation` and `Servlet2Instrumentation`:
+This is the main target for `Servlet3Instrumentation`:
 
 `public void javax.servlet.Filter#doFilter(ServletRequest, ServletResponse, FilterChain)`
 
 `public void javax.servlet.http.HttpServlet#service(ServletRequest, ServletResponse)`.
 
-These instrumentations are located in separate submodules `servlet-3.0`, `servlet-2.2` and `servlet-5.0`,
+These instrumentations are located in separate submodules `servlet-3.0` and `servlet-5.0`,
 because they and corresponding tests depend on different versions of the servlet specification.
 
 At last, request processing may reach the specific framework that your application uses.

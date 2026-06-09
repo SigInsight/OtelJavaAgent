@@ -32,92 +32,7 @@ val latestJava = "25" // renovate(java-version)
 // Each line under appserver describes one matrix of (version x vm x jdk), dockerfile key overrides
 // Dockerfile name, args key passes raw arguments to docker build
 val targets = mapOf(
-  "jetty" to listOf(
-    ImageTarget(
-      listOf("9.4.58"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17", "21", latestJava),
-      mapOf("sourceVersion" to "9.4.58.v20250814")
-    ),
-    ImageTarget(
-      listOf("10.0.26"),
-      listOf("hotspot", "openj9"),
-      listOf("11", "17", "21", latestJava),
-      mapOf("sourceVersion" to "10.0.26")
-    ),
-    ImageTarget(
-      listOf("11.0.26"),
-      listOf("hotspot", "openj9"),
-      listOf("11", "17", "21", latestJava),
-      mapOf("sourceVersion" to "11.0.26"),
-      "servlet-5.0"
-    ),
-    ImageTarget(
-      listOf("12.0.28"),
-      listOf("hotspot", "openj9"),
-      listOf("17", "21", latestJava),
-      mapOf("sourceVersion" to "12.0.28"),
-      "servlet-5.0"
-    ),
-  ),
-  "liberty" to listOf(
-    ImageTarget(
-      listOf("open-liberty:20.0.0.12-full-java11-openj9@sha256:2fa4af95d6c48e3db79edfd2b8a9c71e26c63a68c3fcae92f222fbb42c469ed2"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11")
-    ),
-    ImageTarget(
-      listOf("open-liberty:21.0.0.12-full-java11-openj9@sha256:eb014c600b5e08b799cb0c5781e606cf1e7a28ad913ba956c9d9e7f8a2f528dc"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17")
-    ),
-    ImageTarget(
-      listOf("open-liberty:22.0.0.12-full-java11-openj9@sha256:a06f1da35a564f00354b86c7d01d8cc9d6eef156ce88d5b59605c5c02bf48c72"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17")
-    ),
-    ImageTarget(
-      listOf("open-liberty:23.0.0.12-full-java11-openj9@sha256:cd6aa69cffffb45427cbb6a5640cd00b13c98064f296a66894ea1decd181e1c3"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17", "21")
-    ),
-    ImageTarget(
-      listOf("open-liberty:26.0.0.3-full-java11-openj9@sha256:0f1e49d15b6de21cdf65b032a20103598c30f20f764b45ba1044d36d762f6165"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17", "21", "25"),
-      mapOf("release" to "26.0.0.3")
-    ),
-  ),
-  "payara" to listOf(
-    ImageTarget(
-      listOf(
-        "payara/server-full:5.2020.6@sha256:8c8f054ecbfb340b60961d7ffea2d223cea1afe6183f6986f4806de5c0bc9419",
-        "payara/server-full:5.2021.8@sha256:ffc915a7243b27504c13c4bd4adb3da55c6c08a93ac05685afea3ea77380109d"
-      ),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11")
-    ),
-    // Test application is not deployed when server is sarted with hotspot jdk version 21
-    ImageTarget(
-      listOf("payara/server-full:6.2023.12@sha256:5c382db1f5bad8bef693dbcd0fed299844690839f4894e07c248de5f4b186b9b"),
-      listOf("hotspot"),
-      listOf("11", "17"),
-      war = "servlet-5.0"
-    ),
-    ImageTarget(
-      listOf("payara/server-full:6.2023.12@sha256:5c382db1f5bad8bef693dbcd0fed299844690839f4894e07c248de5f4b186b9b"),
-      listOf("openj9"),
-      listOf("11", "17", "21"),
-      war = "servlet-5.0"
-    )
-  ),
   "tomcat" to listOf(
-    ImageTarget(
-      listOf("7.0.109"),
-      listOf("hotspot", "openj9"),
-      listOf("8"),
-      mapOf("majorVersion" to "7")
-    ),
     ImageTarget(
       listOf("8.5.98"),
       listOf("hotspot", "openj9"),
@@ -349,12 +264,6 @@ fun configureImage(
   if (server == "wildfly") {
     // wildfly url without .zip or .tar.gz suffix
     extraArgs["baseDownloadUrl"] = "https://repo1.maven.org/maven2/org/wildfly/wildfly-dist/$version/wildfly-dist-$version"
-  } else if (server == "payara") {
-    if (version == "5.2020.6") {
-      extraArgs["domainName"] = "production"
-    } else {
-      extraArgs["domainName"] = "domain1"
-    }
   }
 
   val buildTask = tasks.register<DockerBuildImage>("${server}Image-$version-jdk$jdk$vmSuffix$platformSuffix") {

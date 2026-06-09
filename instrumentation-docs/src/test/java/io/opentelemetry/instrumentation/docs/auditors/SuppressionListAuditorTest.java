@@ -115,34 +115,30 @@ corresponding instrumentation name: {{% /config_option %}}
     String testList =
 """
 libraries:
-  activej:
-  - name: activej-http-6.0
-    description: This instrumentation enables SERVER spans and metrics for the ActiveJ
-      HTTP server.
-    source_path: instrumentation/activej-http-6.0
-    minimum_java_version: 17
+  methods:
+  - name: methods
+    description: This instrumentation traces methods annotated with configured annotations.
+    source_path: instrumentation/methods
+    minimum_java_version: 8
     scope:
-      name: io.opentelemetry.activej-http-6.0
-    target_versions:
-      javaagent:
-      - io.activej:activej-http:[6.0,)
+      name: io.opentelemetry.methods
 """;
     var result = SuppressionListAuditor.parseInstrumentationList(testList);
 
     assertThat(result).hasSize(1);
-    assertThat(result).containsExactly("activej-http-6.0");
+    assertThat(result).containsExactly("methods");
   }
 
   @Test
   void testIdentifyMissingItems() {
     var documentationDisabledList = List.of("methods");
     var instrumentationList =
-        List.of("methods", "activej-http-6.0");
+        List.of("methods", "axis2");
 
     var missingItems =
         SuppressionListAuditor.identifyMissingItems(documentationDisabledList, instrumentationList);
     assertThat(missingItems).hasSize(1);
-    assertThat(missingItems).containsExactly("activej-http");
+    assertThat(missingItems).containsExactly("axis2");
   }
 
   @Test
@@ -175,7 +171,6 @@ corresponding instrumentation name: {{% /config_option %}}
 | Library/Framework                                | Instrumentation name                        |
 | ------------------------------------------------ | ------------------------------------------- |
 | Additional methods tracing                       | `methods`                                   |
-| ActiveJ                                          | `activej-http`                              |
 """;
   }
 
@@ -206,17 +201,13 @@ corresponding instrumentation name: {{% /config_option %}}
     return
 """
 libraries:
-  activej:
-  - name: activej-http-6.0
-    description: This instrumentation enables SERVER spans and metrics for the ActiveJ
-      HTTP server.
-    source_path: instrumentation/activej-http-6.0
-    minimum_java_version: 17
+  methods:
+  - name: methods
+    description: This instrumentation traces methods annotated with configured annotations.
+    source_path: instrumentation/methods
+    minimum_java_version: 8
     scope:
-      name: io.opentelemetry.activej-http-6.0
-    target_versions:
-      javaagent:
-      - io.activej:activej-http:[6.0,)
+      name: io.opentelemetry.methods
 """;
   }
 }
