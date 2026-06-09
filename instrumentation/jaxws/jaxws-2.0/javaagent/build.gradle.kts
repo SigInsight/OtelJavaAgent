@@ -1,0 +1,23 @@
+plugins {
+  id("otel.javaagent-instrumentation")
+}
+
+muzzle {
+  pass {
+    group.set("javax.xml.ws")
+    module.set("jaxws-api")
+    versions.set("[2.0,]")
+    assertInverse.set(true)
+  }
+}
+
+dependencies {
+  library("javax.xml.ws:jaxws-api:2.0")
+  implementation(project(":instrumentation:jaxws:jaxws-common-2.0:javaagent"))
+}
+
+tasks.test {
+  jvmArgs("-Dotel.instrumentation.common.experimental.controller-telemetry.enabled=true")
+  systemProperty("collectMetadata", otelProps.collectMetadata)
+  systemProperty("metadataConfig", "otel.instrumentation.common.experimental.controller-telemetry.enabled=true")
+}

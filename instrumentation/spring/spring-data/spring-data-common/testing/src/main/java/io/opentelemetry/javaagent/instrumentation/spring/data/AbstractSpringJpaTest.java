@@ -1,0 +1,471 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.spring.data;
+
+import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emitStableDatabaseSemconv;
+import static io.opentelemetry.instrumentation.testing.junit.code.SemconvCodeStabilityUtil.codeFunctionAssertions;
+import static io.opentelemetry.instrumentation.testing.junit.db.SemconvStabilityUtil.maybeStable;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.satisfies;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_SUMMARY;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_CONNECTION_STRING;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAME;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SQL_TABLE;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_USER;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DbSystemNameIncubatingValues.HSQLDB;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
+
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.instrumentation.testing.junit.AgentInstrumentationExtension;
+import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
+import io.opentelemetry.sdk.testing.assertj.TraceAssert;
+import io.opentelemetry.sdk.trace.data.StatusData;
+import java.util.List;
+import java.util.Optional;
+import org.hibernate.Version;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+@SuppressWarnings("deprecation") // TODO DB_CONNECTION_STRING deprecation
+public abstract class AbstractSpringJpaTest<
+    ENTITY, REPOSITORY extends JpaRepository<ENTITY, Long>> {
+
+  @RegisterExtension
+  private static final InstrumentationExtension testing = AgentInstrumentationExtension.create();
+
+  protected abstract ENTITY newCustomer(String firstName, String lastName);
+
+  protected abstract Long id(ENTITY customer);
+
+  protected abstract void setFirstName(ENTITY customer, String firstName);
+
+  protected abstract Class<REPOSITORY> repositoryClass();
+
+  protected abstract REPOSITORY repository();
+
+  protected abstract List<ENTITY> findByLastName(REPOSITORY repository, String lastName);
+
+  protected abstract List<ENTITY> findSpecialCustomers(REPOSITORY repository);
+
+  protected abstract Optional<ENTITY> findOneByLastName(REPOSITORY repository, String lastName);
+
+  protected void clearData() {
+    testing.clearData();
+  }
+
+  @Test
+  void testObjectMethod() {
+    REPOSITORY repo = repository();
+
+    testing.runWithSpan("toString test", repo::toString);
+
+    // Asserting that a span is NOT created for toString
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("toString test").hasTotalAttributeCount(0)));
+  }
+
+  static void assertHibernate4Trace(TraceAssert trace, String repoClassName) {
+    trace.hasSpansSatisfyingExactly(
+        span ->
+            span.hasName("JpaCustomerRepository.save")
+                .hasKind(SpanKind.INTERNAL)
+                .hasAttributesSatisfyingExactly(codeFunctionAssertions(repoClassName, "save")),
+        span ->
+            span.hasName(
+                    emitStableDatabaseSemconv() ? "INSERT JpaCustomer" : "INSERT test.JpaCustomer")
+                .hasKind(SpanKind.CLIENT)
+                .hasParent(trace.getSpan(0))
+                .hasAttributesSatisfyingExactly(
+                    equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                    equalTo(maybeStable(DB_NAME), "test"),
+                    equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                    equalTo(
+                        DB_CONNECTION_STRING, emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                    satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("insert ")),
+                    equalTo(
+                        DB_QUERY_SUMMARY,
+                        emitStableDatabaseSemconv() ? "INSERT JpaCustomer" : null),
+                    equalTo(
+                        maybeStable(DB_OPERATION), emitStableDatabaseSemconv() ? null : "INSERT"),
+                    equalTo(
+                        maybeStable(DB_SQL_TABLE),
+                        emitStableDatabaseSemconv() ? null : "JpaCustomer")));
+  }
+
+  static void assertHibernateTrace(TraceAssert trace, String repoClassName) {
+    trace.hasSpansSatisfyingExactly(
+        span ->
+            span.hasName("JpaCustomerRepository.save")
+                .hasKind(SpanKind.INTERNAL)
+                .hasAttributesSatisfyingExactly(codeFunctionAssertions(repoClassName, "save")),
+        span ->
+            span.hasKind(SpanKind.CLIENT)
+                .satisfies(
+                    spanData -> {
+                      if (emitStableDatabaseSemconv()) {
+                        // Hibernate 5.x uses "hibernate_sequence", 6.x+ uses "JpaCustomer_SEQ"
+                        assertThat(spanData.getName())
+                            .isIn("CALL hibernate_sequence", "CALL JpaCustomer_SEQ");
+                      } else {
+                        assertThat(spanData.getName()).isEqualTo("CALL test");
+                      }
+                    })
+                .hasAttributesSatisfyingExactly(
+                    equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                    equalTo(maybeStable(DB_NAME), "test"),
+                    equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                    equalTo(
+                        DB_CONNECTION_STRING, emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                    satisfies(
+                        maybeStable(DB_STATEMENT), val -> val.startsWith("call next value for ")),
+                    satisfies(
+                        DB_QUERY_SUMMARY,
+                        val -> {
+                          if (emitStableDatabaseSemconv()) {
+                            val.isIn("CALL hibernate_sequence", "CALL JpaCustomer_SEQ");
+                          } else {
+                            val.isNull();
+                          }
+                        }),
+                    equalTo(
+                        maybeStable(DB_OPERATION), emitStableDatabaseSemconv() ? null : "CALL")),
+        span ->
+            span.hasName(
+                    emitStableDatabaseSemconv() ? "INSERT JpaCustomer" : "INSERT test.JpaCustomer")
+                .hasKind(SpanKind.CLIENT)
+                .hasParent(trace.getSpan(0))
+                .hasAttributesSatisfyingExactly(
+                    equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                    equalTo(maybeStable(DB_NAME), "test"),
+                    equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                    equalTo(
+                        DB_CONNECTION_STRING, emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                    satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("insert ")),
+                    equalTo(
+                        DB_QUERY_SUMMARY,
+                        emitStableDatabaseSemconv() ? "INSERT JpaCustomer" : null),
+                    equalTo(
+                        maybeStable(DB_OPERATION), emitStableDatabaseSemconv() ? null : "INSERT"),
+                    equalTo(
+                        maybeStable(DB_SQL_TABLE),
+                        emitStableDatabaseSemconv() ? null : "JpaCustomer")));
+  }
+
+  @Test
+  void testCrud() {
+    boolean isHibernate4 = Version.getVersionString().startsWith("4.");
+    REPOSITORY repo = repository();
+    String repoClassName = repositoryClass().getName();
+
+    ENTITY customer = newCustomer("Bob", "Anonymous");
+
+    assertThat(id(customer)).isNull();
+    assertThat(repo.findAll()).isEmpty();
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("JpaCustomerRepository.findAll")
+                        .hasKind(SpanKind.INTERNAL)
+                        .hasAttributesSatisfyingExactly(
+                            codeFunctionAssertions(repoClassName, "findAll")),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT JpaCustomer"
+                                : "SELECT test.JpaCustomer")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("select ")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT JpaCustomer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "JpaCustomer"))));
+    clearData();
+
+    repo.save(customer);
+    assertThat(id(customer)).isNotNull();
+    Long savedId = id(customer);
+    if (isHibernate4) {
+      testing.waitAndAssertTraces(trace -> assertHibernate4Trace(trace, repoClassName));
+    } else {
+      testing.waitAndAssertTraces(trace -> assertHibernateTrace(trace, repoClassName));
+    }
+    clearData();
+
+    setFirstName(customer, "Bill");
+    repo.save(customer);
+    assertThat(id(customer)).isEqualTo(savedId);
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("JpaCustomerRepository.save")
+                        .hasKind(SpanKind.INTERNAL)
+                        .hasAttributesSatisfyingExactly(
+                            codeFunctionAssertions(repoClassName, "save")),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT JpaCustomer"
+                                : "SELECT test.JpaCustomer")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("select ")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT JpaCustomer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "JpaCustomer")),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "UPDATE JpaCustomer"
+                                : "UPDATE test.JpaCustomer")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("update ")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "UPDATE JpaCustomer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "UPDATE"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "JpaCustomer"))));
+    clearData();
+
+    customer = findByLastName(repo, "Anonymous").get(0);
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("JpaCustomerRepository.findByLastName")
+                        .hasKind(SpanKind.INTERNAL)
+                        .hasAttributesSatisfyingExactly(
+                            codeFunctionAssertions(repoClassName, "findByLastName")),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT JpaCustomer"
+                                : "SELECT test.JpaCustomer")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("select ")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT JpaCustomer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "JpaCustomer"))));
+    clearData();
+
+    repo.delete(customer);
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("JpaCustomerRepository.delete")
+                        .hasKind(SpanKind.INTERNAL)
+                        .hasAttributesSatisfyingExactly(
+                            codeFunctionAssertions(repoClassName, "delete")),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT JpaCustomer"
+                                : "SELECT test.JpaCustomer")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("select ")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT JpaCustomer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "JpaCustomer")),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "DELETE JpaCustomer"
+                                : "DELETE test.JpaCustomer")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("delete ")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "DELETE JpaCustomer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "DELETE"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "JpaCustomer"))));
+  }
+
+  @Test
+  void testCustomRepositoryMethod() {
+    REPOSITORY repo = repository();
+    String repoClassName = repositoryClass().getName();
+    List<ENTITY> customers = findSpecialCustomers(repo);
+
+    assertThat(customers).isEmpty();
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("JpaCustomerRepository.findSpecialCustomers")
+                        .hasKind(SpanKind.INTERNAL)
+                        .hasAttributesSatisfyingExactly(
+                            codeFunctionAssertions(repoClassName, "findSpecialCustomers")),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT JpaCustomer"
+                                : "SELECT test.JpaCustomer")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("select ")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT JpaCustomer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "JpaCustomer"))));
+  }
+
+  @Test
+  void testFailedRepositoryMethod() {
+    // given
+    REPOSITORY repo = repository();
+    String repoClassName = repositoryClass().getName();
+
+    String commonLastName = "Smith";
+    repo.save(newCustomer("Alice", commonLastName));
+    repo.save(newCustomer("Bob", commonLastName));
+    clearData();
+
+    // when
+    IncorrectResultSizeDataAccessException expectedException =
+        catchThrowableOfType(
+            () -> findOneByLastName(repo, commonLastName),
+            IncorrectResultSizeDataAccessException.class);
+
+    // then
+    assertThat(expectedException).isNotNull();
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("JpaCustomerRepository.findOneByLastName")
+                        .hasKind(SpanKind.INTERNAL)
+                        .hasStatus(StatusData.error())
+                        .hasException(expectedException)
+                        .hasAttributesSatisfyingExactly(
+                            codeFunctionAssertions(repoClassName, "findOneByLastName")),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT JpaCustomer"
+                                : "SELECT test.JpaCustomer")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(maybeStable(DB_STATEMENT), val -> val.startsWith("select ")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT JpaCustomer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "JpaCustomer"))));
+  }
+}

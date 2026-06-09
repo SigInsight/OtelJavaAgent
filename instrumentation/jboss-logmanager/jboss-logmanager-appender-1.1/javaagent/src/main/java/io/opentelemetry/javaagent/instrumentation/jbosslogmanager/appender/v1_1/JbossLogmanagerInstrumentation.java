@@ -1,0 +1,66 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.jbosslogmanager.appender.v1_1;
+
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
+import io.opentelemetry.api.logs.LoggerProvider;
+import io.opentelemetry.javaagent.bootstrap.CallDepth;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import javax.annotation.Nullable;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.jboss.logmanager.ExtLogRecord;
+import org.jboss.logmanager.Logger;
+
+class JbossLogmanagerInstrumentation implements TypeInstrumentation {
+  @Override
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return named("org.jboss.logmanager.Logger");
+  }
+
+  @Override
+  public void transform(TypeTransformer transformer) {
+    transformer.applyAdviceToMethod(
+        isPublic()
+            .and(named("logRaw"))
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("org.jboss.logmanager.ExtLogRecord"))),
+        getClass().getName() + "$CallLogRawAdvice");
+  }
+
+  @SuppressWarnings("unused")
+  public static class CallLogRawAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    public static CallDepth methodEnter(
+        @Advice.This Logger logger, @Advice.Argument(0) ExtLogRecord record) {
+      // need to track call depth across all loggers in order to avoid double capture when one
+      // logging framework delegates to another
+      CallDepth callDepth = CallDepth.forClass(LoggerProvider.class);
+      if (callDepth.getAndIncrement() == 0) {
+        try {
+          LoggingEventMapper.INSTANCE.capture(logger, record);
+        } catch (Throwable t) {
+          callDepth.decrementAndGet();
+          throw t;
+        }
+      }
+      return callDepth;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class, inline = false)
+    public static void methodExit(@Advice.Enter @Nullable CallDepth callDepth) {
+      if (callDepth != null) {
+        callDepth.decrementAndGet();
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.okhttp.v3_0;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
+import io.opentelemetry.instrumentation.api.semconv.http.HttpClientRequestResendCount;
+import io.opentelemetry.instrumentation.api.util.VirtualField;
+import io.opentelemetry.instrumentation.okhttp.v3_0.internal.ConnectionErrorSpanInterceptor;
+import io.opentelemetry.instrumentation.okhttp.v3_0.internal.OkHttpClientInstrumenterBuilderFactory;
+import io.opentelemetry.instrumentation.okhttp.v3_0.internal.TracingInterceptor;
+import io.opentelemetry.javaagent.bootstrap.executors.PropagatedContext;
+import io.opentelemetry.javaagent.bootstrap.internal.JavaagentHttpClientInstrumenters;
+import okhttp3.Interceptor;
+import okhttp3.Response;
+
+/** Holder of singleton interceptors for adding to instrumented clients. */
+public class OkHttp3Singletons {
+
+  public static final VirtualField<Runnable, PropagatedContext> PROPAGATED_CONTEXT =
+      VirtualField.find(Runnable.class, PropagatedContext.class);
+  private static final Instrumenter<Interceptor.Chain, Response> instrumenter =
+      JavaagentHttpClientInstrumenters.create(
+          OkHttpClientInstrumenterBuilderFactory.create(GlobalOpenTelemetry.get()));
+
+  private static final Interceptor contextInterceptor =
+      chain -> {
+        try (Scope ignored =
+            HttpClientRequestResendCount.initialize(Context.current()).makeCurrent()) {
+          return chain.proceed(chain.request());
+        }
+      };
+
+  private static final Interceptor connectionErrorInterceptor =
+      new ConnectionErrorSpanInterceptor(instrumenter);
+
+  private static final Interceptor tracingInterceptor =
+      new TracingInterceptor(instrumenter, GlobalOpenTelemetry.getPropagators());
+
+  public static Interceptor contextInterceptor() {
+    return contextInterceptor;
+  }
+
+  public static Interceptor connectionErrorInterceptor() {
+    return connectionErrorInterceptor;
+  }
+
+  public static Interceptor tracingInterceptor() {
+    return tracingInterceptor;
+  }
+
+  private OkHttp3Singletons() {}
+}

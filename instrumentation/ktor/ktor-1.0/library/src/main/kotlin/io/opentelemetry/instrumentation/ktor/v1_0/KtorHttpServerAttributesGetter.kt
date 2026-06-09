@@ -1,0 +1,32 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.instrumentation.ktor.v1_0
+
+import io.ktor.features.*
+import io.ktor.request.*
+import io.ktor.response.*
+import io.opentelemetry.instrumentation.api.semconv.http.HttpServerAttributesGetter
+
+internal object KtorHttpServerAttributesGetter : HttpServerAttributesGetter<ApplicationRequest, ApplicationResponse> {
+
+  override fun getHttpRequestMethod(request: ApplicationRequest): String = request.httpMethod.value
+
+  override fun getHttpRequestHeader(request: ApplicationRequest, name: String): List<String> = request.headers.getAll(name) ?: emptyList()
+
+  override fun getHttpResponseStatusCode(request: ApplicationRequest, response: ApplicationResponse, error: Throwable?): Int? = response.status()?.value
+
+  override fun getHttpResponseHeader(request: ApplicationRequest, response: ApplicationResponse, name: String): List<String> = response.headers.allValues().getAll(name) ?: emptyList()
+
+  override fun getUrlScheme(request: ApplicationRequest): String = request.origin.scheme
+
+  override fun getUrlPath(request: ApplicationRequest): String = request.path()
+
+  override fun getUrlQuery(request: ApplicationRequest): String = request.queryString()
+
+  override fun getNetworkProtocolName(request: ApplicationRequest, response: ApplicationResponse?): String? = if (request.httpVersion.startsWith("HTTP/")) "http" else null
+
+  override fun getNetworkProtocolVersion(request: ApplicationRequest, response: ApplicationResponse?): String? = if (request.httpVersion.startsWith("HTTP/")) request.httpVersion.substring("HTTP/".length) else null
+}

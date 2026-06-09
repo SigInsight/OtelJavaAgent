@@ -1,0 +1,437 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package spring.jpa;
+
+import static io.opentelemetry.api.trace.SpanKind.CLIENT;
+import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
+import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emitStableDatabaseSemconv;
+import static io.opentelemetry.instrumentation.testing.junit.db.SemconvStabilityUtil.maybeStable;
+import static io.opentelemetry.javaagent.instrumentation.hibernate.ExperimentalTestHelper.HIBERNATE_SESSION_ID;
+import static io.opentelemetry.javaagent.instrumentation.hibernate.ExperimentalTestHelper.experimental;
+import static io.opentelemetry.javaagent.instrumentation.hibernate.ExperimentalTestHelper.experimentalSatisfies;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.satisfies;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_SUMMARY;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_CONNECTION_STRING;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAME;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SQL_TABLE;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_USER;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DbSystemNameIncubatingValues.HSQLDB;
+import static java.util.Arrays.asList;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.opentelemetry.instrumentation.testing.junit.AgentInstrumentationExtension;
+import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+class SpringJpaTest {
+  @RegisterExtension
+  static final InstrumentationExtension testing = AgentInstrumentationExtension.create();
+
+  private static AnnotationConfigApplicationContext context;
+  private static CustomerRepository repo;
+
+  @BeforeAll
+  static void setUp() {
+    context = new AnnotationConfigApplicationContext(PersistenceConfig.class);
+    repo = context.getBean(CustomerRepository.class);
+  }
+
+  @AfterAll
+  static void tearDown() {
+    if (context != null) {
+      context.close();
+    }
+  }
+
+  @SuppressWarnings("deprecation") // using deprecated semconv
+  @Test
+  void testCrud() {
+    Customer customer = new Customer("Bob", "Anonymous");
+
+    assertThat(customer.getId()).isNull();
+    assertThat(testing.runWithSpan("parent", () -> repo.findAll().iterator().hasNext())).isFalse();
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("parent")
+                        .hasKind(INTERNAL)
+                        .hasNoParent()
+                        .hasTotalAttributeCount(0),
+                span ->
+                    span.hasName("SELECT spring.jpa.Customer")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            experimentalSatisfies(
+                                HIBERNATE_SESSION_ID,
+                                val -> assertThat(val).isInstanceOf(String.class))),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT Customer"
+                                : "SELECT test.Customer")
+                        .hasKind(CLIENT)
+                        .hasParent(trace.getSpan(1))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(
+                                maybeStable(DB_STATEMENT),
+                                val ->
+                                    val.matches(
+                                        "select ([^.]+)\\.id([^,]*),([^.]+)\\.firstName([^,]*),([^.]+)\\.lastName(.*)from Customer(.*)")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT Customer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "Customer")),
+                span ->
+                    span.hasName("Transaction.commit")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(
+                                HIBERNATE_SESSION_ID,
+                                experimental(
+                                    trace.getSpan(1).getAttributes().get(HIBERNATE_SESSION_ID))))));
+
+    testing.clearData();
+
+    testing.runWithSpan("parent", () -> repo.save(customer));
+    Long savedId = customer.getId();
+
+    assertThat(customer.getId()).isNotNull();
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("parent")
+                        .hasKind(INTERNAL)
+                        .hasNoParent()
+                        .hasTotalAttributeCount(0),
+                span ->
+                    span.hasName("Session.persist spring.jpa.Customer")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            experimentalSatisfies(
+                                HIBERNATE_SESSION_ID,
+                                val -> assertThat(val).isInstanceOf(String.class))),
+                span ->
+                    span.hasName(emitStableDatabaseSemconv() ? "CALL Customer_SEQ" : "CALL test")
+                        .hasKind(CLIENT)
+                        .hasParent(trace.getSpan(1))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(maybeStable(DB_STATEMENT), "call next value for Customer_SEQ"),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "CALL Customer_SEQ" : null),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "CALL")),
+                span ->
+                    span.hasName("Transaction.commit")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(
+                                HIBERNATE_SESSION_ID,
+                                experimental(
+                                    trace.getSpan(1).getAttributes().get(HIBERNATE_SESSION_ID)))),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "INSERT Customer"
+                                : "INSERT test.Customer")
+                        .hasKind(CLIENT)
+                        .hasParent(trace.getSpan(3))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(
+                                maybeStable(DB_STATEMENT),
+                                val ->
+                                    val.matches("insert into Customer \\(.*\\) values \\(.*\\)")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "INSERT Customer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "INSERT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "Customer"))));
+
+    testing.clearData();
+
+    customer.setFirstName("Bill");
+    testing.runWithSpan("parent", () -> repo.save(customer));
+
+    assertThat(customer.getId()).isEqualTo(savedId);
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("parent")
+                        .hasKind(INTERNAL)
+                        .hasNoParent()
+                        .hasTotalAttributeCount(0),
+                span ->
+                    span.hasName("Session.merge spring.jpa.Customer")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            experimentalSatisfies(
+                                HIBERNATE_SESSION_ID,
+                                val -> assertThat(val).isInstanceOf(String.class))),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT Customer"
+                                : "SELECT test.Customer")
+                        .hasKind(CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(
+                                maybeStable(DB_STATEMENT),
+                                val ->
+                                    val.matches(
+                                        "select ([^.]+)\\.id([^,]*),([^.]+)\\.firstName([^,]*),([^.]+)\\.lastName (.*)from Customer (.*)where ([^.]+)\\.id( ?)=( ?)\\?")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT Customer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "Customer")),
+                span ->
+                    span.hasName("Transaction.commit")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(
+                                HIBERNATE_SESSION_ID,
+                                experimental(
+                                    trace.getSpan(1).getAttributes().get(HIBERNATE_SESSION_ID)))),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "UPDATE Customer"
+                                : "UPDATE test.Customer")
+                        .hasKind(CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(
+                                maybeStable(DB_STATEMENT),
+                                val ->
+                                    val.matches(
+                                        "update Customer set firstName=\\?,(.*)lastName=\\? where id=\\?")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "UPDATE Customer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "UPDATE"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "Customer"))));
+    testing.clearData();
+    Customer anonymousCustomer =
+        testing.runWithSpan("parent", () -> repo.findByLastName("Anonymous").get(0));
+
+    assertThat(anonymousCustomer.getId()).isEqualTo(savedId);
+    assertThat(anonymousCustomer.getFirstName()).isEqualTo("Bill");
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("parent")
+                        .hasKind(INTERNAL)
+                        .hasNoParent()
+                        .hasTotalAttributeCount(0),
+                span ->
+                    span.satisfies(
+                            spanData ->
+                                assertThat(spanData.getName())
+                                    .isIn(
+                                        emitStableDatabaseSemconv()
+                                            ? asList("SELECT spring.jpa.Customer", "hibernate")
+                                            : asList(
+                                                "SELECT spring.jpa.Customer", "Hibernate Query")))
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            experimentalSatisfies(
+                                HIBERNATE_SESSION_ID,
+                                val -> assertThat(val).isInstanceOf(String.class))),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT Customer"
+                                : "SELECT test.Customer")
+                        .hasKind(CLIENT)
+                        .hasParent(trace.getSpan(1))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(
+                                maybeStable(DB_STATEMENT),
+                                val ->
+                                    val.matches(
+                                        "select ([^.]+)\\.id([^,]*),([^.]+)\\.firstName([^,]*),([^.]+)\\.lastName (.*)from Customer (.*)(where ([^.]+)\\.lastName( ?)=( ?)\\?|)")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT Customer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "Customer"))));
+    testing.clearData();
+
+    testing.runWithSpan("parent", () -> repo.delete(anonymousCustomer));
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("parent")
+                        .hasKind(INTERNAL)
+                        .hasNoParent()
+                        .hasTotalAttributeCount(0),
+                span ->
+                    span.satisfies(
+                            spanData ->
+                                assertThat(spanData.getName())
+                                    .matches("Session.(get|find) spring.jpa.Customer"))
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            experimentalSatisfies(
+                                HIBERNATE_SESSION_ID,
+                                val -> assertThat(val).isInstanceOf(String.class))),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT Customer"
+                                : "SELECT test.Customer")
+                        .hasKind(CLIENT)
+                        .hasParent(trace.getSpan(1))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            satisfies(
+                                maybeStable(DB_STATEMENT),
+                                val ->
+                                    val.matches(
+                                        "select ([^.]+)\\.id([^,]*),([^.]+)\\.firstName([^,]*),([^.]+)\\.lastName (.*)from Customer (.*)(where ([^.]+)\\.lastName( ?)=( ?)\\?|)")),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT Customer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "Customer")),
+                span ->
+                    span.hasName("Session.merge spring.jpa.Customer")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            experimentalSatisfies(
+                                HIBERNATE_SESSION_ID,
+                                val -> assertThat(val).isInstanceOf(String.class))),
+                span ->
+                    span.hasName("Session.remove spring.jpa.Customer")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            experimentalSatisfies(
+                                HIBERNATE_SESSION_ID,
+                                val -> assertThat(val).isInstanceOf(String.class))),
+                span ->
+                    span.hasName("Transaction.commit")
+                        .hasKind(INTERNAL)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            experimentalSatisfies(
+                                HIBERNATE_SESSION_ID,
+                                val -> assertThat(val).isInstanceOf(String.class))),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "DELETE Customer"
+                                : "DELETE test.Customer")
+                        .hasKind(CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
+                            equalTo(maybeStable(DB_NAME), "test"),
+                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "sa"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
+                            equalTo(maybeStable(DB_STATEMENT), "delete from Customer where id=?"),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "DELETE Customer" : null),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "DELETE"),
+                            equalTo(
+                                maybeStable(DB_SQL_TABLE),
+                                emitStableDatabaseSemconv() ? null : "Customer"))));
+  }
+}

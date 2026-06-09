@@ -1,0 +1,94 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.struts.v2_3;
+
+import static io.opentelemetry.instrumentation.api.semconv.http.HttpServerRouteSource.CONTROLLER;
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.implementsInterface;
+import static io.opentelemetry.javaagent.instrumentation.struts.v2_3.StrutsServerSpanNaming.serverSpanName;
+import static io.opentelemetry.javaagent.instrumentation.struts.v2_3.StrutsSingletons.instrumenter;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+
+import com.opensymphony.xwork2.ActionInvocation;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.instrumentation.api.semconv.http.HttpServerRoute;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import javax.annotation.Nullable;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
+class ActionInvocationInstrumentation implements TypeInstrumentation {
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderOptimization() {
+    return hasClassesNamed("com.opensymphony.xwork2.ActionInvocation");
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return implementsInterface(named("com.opensymphony.xwork2.ActionInvocation"));
+  }
+
+  @Override
+  public void transform(TypeTransformer transformer) {
+    transformer.applyAdviceToMethod(
+        isPublic().and(named("invokeActionOnly")),
+        getClass().getName() + "$InvokeActionOnlyAdvice");
+  }
+
+  @SuppressWarnings("unused")
+  public static class InvokeActionOnlyAdvice {
+
+    public static class AdviceScope {
+      private final Context context;
+      private final Scope scope;
+      private final ActionInvocation actionInvocation;
+
+      private AdviceScope(Context context, Scope scope, ActionInvocation actionInvocation) {
+        this.context = context;
+        this.scope = scope;
+        this.actionInvocation = actionInvocation;
+      }
+
+      @Nullable
+      public static AdviceScope start(ActionInvocation actionInvocation) {
+        Context parentContext = Context.current();
+        HttpServerRoute.update(
+            parentContext, CONTROLLER, serverSpanName(), actionInvocation.getProxy());
+
+        if (!instrumenter().shouldStart(parentContext, actionInvocation)) {
+          return null;
+        }
+        Context context = instrumenter().start(parentContext, actionInvocation);
+        return new AdviceScope(context, context.makeCurrent(), actionInvocation);
+      }
+
+      public void end(@Nullable Throwable throwable) {
+        scope.close();
+        instrumenter().end(context, actionInvocation, null, throwable);
+      }
+    }
+
+    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    @Nullable
+    public static AdviceScope onEnter(@Advice.This ActionInvocation actionInvocation) {
+      return AdviceScope.start(actionInvocation);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class, inline = false)
+    public static void stopSpan(
+        @Advice.Thrown @Nullable Throwable throwable,
+        @Advice.Enter @Nullable AdviceScope adviceScope) {
+      if (adviceScope != null) {
+        adviceScope.end(throwable);
+      }
+    }
+  }
+}

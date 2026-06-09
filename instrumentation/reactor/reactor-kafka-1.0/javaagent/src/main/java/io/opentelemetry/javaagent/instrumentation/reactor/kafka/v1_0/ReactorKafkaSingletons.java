@@ -1,0 +1,34 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.reactor.kafka.v1_0;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.instrumentation.api.incubator.config.internal.DeclarativeConfigUtil;
+import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
+import io.opentelemetry.instrumentation.kafkaclients.common.v0_11.internal.KafkaInstrumenterFactory;
+import io.opentelemetry.instrumentation.kafkaclients.common.v0_11.internal.KafkaProcessRequest;
+import io.opentelemetry.javaagent.bootstrap.internal.ExperimentalConfig;
+
+final class ReactorKafkaSingletons {
+
+  private static final String INSTRUMENTATION_NAME = "io.opentelemetry.reactor-kafka-1.0";
+
+  private static final Instrumenter<KafkaProcessRequest, Void> processInstrumenter =
+      new KafkaInstrumenterFactory(GlobalOpenTelemetry.get(), INSTRUMENTATION_NAME)
+          .setCapturedHeaders(ExperimentalConfig.get().getMessagingHeaders())
+          .setCaptureExperimentalSpanAttributes(
+              DeclarativeConfigUtil.getInstrumentationConfig(GlobalOpenTelemetry.get(), "kafka")
+                  .getBoolean("experimental_span_attributes/development", false))
+          .setMessagingReceiveTelemetryEnabled(
+              ExperimentalConfig.get().messagingReceiveInstrumentationEnabled())
+          .createConsumerProcessInstrumenter();
+
+  public static Instrumenter<KafkaProcessRequest, Void> processInstrumenter() {
+    return processInstrumenter;
+  }
+
+  private ReactorKafkaSingletons() {}
+}

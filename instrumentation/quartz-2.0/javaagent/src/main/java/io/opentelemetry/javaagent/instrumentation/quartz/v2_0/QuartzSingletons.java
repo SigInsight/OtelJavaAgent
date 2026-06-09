@@ -1,0 +1,26 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.quartz.v2_0;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.instrumentation.api.incubator.config.internal.DeclarativeConfigUtil;
+import io.opentelemetry.instrumentation.quartz.v2_0.QuartzTelemetry;
+
+public class QuartzSingletons {
+
+  private static final QuartzTelemetry telemetry =
+      QuartzTelemetry.builder(GlobalOpenTelemetry.get())
+          .setCaptureExperimentalSpanAttributes(
+              DeclarativeConfigUtil.getInstrumentationConfig(GlobalOpenTelemetry.get(), "quartz")
+                  .getBoolean("experimental_span_attributes/development", false))
+          .build();
+
+  public static QuartzTelemetry telemetry() {
+    return telemetry;
+  }
+
+  private QuartzSingletons() {}
+}

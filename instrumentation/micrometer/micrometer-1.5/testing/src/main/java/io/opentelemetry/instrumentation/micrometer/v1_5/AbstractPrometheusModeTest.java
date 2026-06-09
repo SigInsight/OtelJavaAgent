@@ -1,0 +1,373 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.instrumentation.micrometer.v1_5;
+
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+import static io.opentelemetry.instrumentation.micrometer.v1_5.AbstractCounterTest.INSTRUMENTATION_NAME;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.FunctionTimer;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.LongTaskTimer;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Timer;
+import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
+import java.time.Duration;
+import org.junit.jupiter.api.Test;
+
+@SuppressWarnings("PreferJavaTimeOverload")
+public abstract class AbstractPrometheusModeTest {
+
+  protected abstract InstrumentationExtension testing();
+
+  final TestTimer timerObj = new TestTimer();
+
+  @Test
+  void testCounter() {
+    // given
+    Counter counter =
+        Counter.builder("testPrometheusCounter")
+            .description("This is a test counter")
+            .tags("tag", "value")
+            .baseUnit("")
+            .register(Metrics.globalRegistry);
+
+    // when
+    counter.increment(12);
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusCounter")
+                    .hasDescription("This is a test counter")
+                    .hasUnit("")
+                    .hasDoubleSumSatisfying(
+                        sum ->
+                            sum.isMonotonic()
+                                .hasPointsSatisfying(
+                                    point ->
+                                        point
+                                            .hasValue(12)
+                                            .hasAttributesSatisfyingExactly(
+                                                equalTo(stringKey("tag"), "value")))));
+  }
+
+  @Test
+  void testDistributionSummary() {
+    // given
+    DistributionSummary summary =
+        DistributionSummary.builder("testPrometheusSummary")
+            .description("This is a test summary")
+            .baseUnit("items")
+            .tag("tag", "value")
+            .register(Metrics.globalRegistry);
+
+    // when
+    summary.record(12);
+    summary.record(42);
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusSummary.items")
+                    .hasDescription("This is a test summary")
+                    .hasUnit("items")
+                    .hasHistogramSatisfying(
+                        histogram ->
+                            histogram.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasSum(54)
+                                        .hasCount(2)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusSummary.items.max")
+                    .hasDescription("This is a test summary")
+                    .hasUnit("items")
+                    .hasDoubleGaugeSatisfying(
+                        gauge ->
+                            gauge.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasValue(42)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+  }
+
+  @Test
+  void testFunctionTimer() {
+    // given
+    FunctionTimer.builder(
+            "testPrometheusFunctionTimer",
+            timerObj,
+            TestTimer::getCount,
+            TestTimer::getTotalTimeNanos,
+            NANOSECONDS)
+        .description("This is a test function timer")
+        .tags("tag", "value")
+        .register(Metrics.globalRegistry);
+
+    // when
+    timerObj.add(42, SECONDS);
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusFunctionTimer.seconds.count")
+                    .hasDescription("This is a test function timer")
+                    .hasUnit("{invocation}")
+                    .hasLongSumSatisfying(
+                        sum ->
+                            sum.isMonotonic()
+                                .hasPointsSatisfying(
+                                    point ->
+                                        point
+                                            .hasValue(1)
+                                            .hasAttributesSatisfyingExactly(
+                                                equalTo(stringKey("tag"), "value")))));
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusFunctionTimer.seconds.sum")
+                    .hasDescription("This is a test function timer")
+                    .hasUnit("s")
+                    .hasDoubleSumSatisfying(
+                        sum ->
+                            sum.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasValue(42)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+  }
+
+  @Test
+  void testGauge() {
+    // when
+    Gauge.builder("testPrometheusGauge", () -> 42)
+        .description("This is a test gauge")
+        .tags("tag", "value")
+        .baseUnit("items")
+        .register(Metrics.globalRegistry);
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusGauge.items")
+                    .hasDescription("This is a test gauge")
+                    .hasUnit("items")
+                    .hasDoubleGaugeSatisfying(
+                        gauge ->
+                            gauge.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasValue(42)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+  }
+
+  @Test
+  void testLongTaskTimer() throws InterruptedException {
+    // given
+    LongTaskTimer timer =
+        LongTaskTimer.builder("testPrometheusLongTaskTimer")
+            .description("This is a test long task timer")
+            .tags("tag", "value")
+            .register(Metrics.globalRegistry);
+
+    // when
+    LongTaskTimer.Sample sample = timer.start();
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusLongTaskTimer.seconds.active")
+                    .hasDescription("This is a test long task timer")
+                    .hasUnit("{tasks}")
+                    .hasLongSumSatisfying(
+                        sum ->
+                            sum.isNotMonotonic()
+                                .hasPointsSatisfying(
+                                    point ->
+                                        point
+                                            .hasValue(1)
+                                            .hasAttributesSatisfyingExactly(
+                                                equalTo(stringKey("tag"), "value")))));
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusLongTaskTimer.seconds.duration")
+                    .hasDescription("This is a test long task timer")
+                    .hasUnit("s")
+                    .hasDoubleSumSatisfying(
+                        sum ->
+                            sum.isNotMonotonic()
+                                .hasPointsSatisfying(
+                                    point ->
+                                        point
+                                            .hasAttributesSatisfyingExactly(
+                                                equalTo(stringKey("tag"), "value"))
+                                            .satisfies(
+                                                pointData ->
+                                                    assertThat(pointData.getValue())
+                                                        .isPositive()))));
+
+    // when
+    MILLISECONDS.sleep(100);
+    sample.stop();
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusLongTaskTimer.seconds.active")
+                    .hasLongSumSatisfying(
+                        sum ->
+                            sum.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasValue(0)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusLongTaskTimer.seconds.duration")
+                    .hasDoubleSumSatisfying(
+                        sum ->
+                            sum.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasValue(0)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+  }
+
+  @Test
+  void testTimer() {
+    // given
+    Timer timer =
+        Timer.builder("testPrometheusTimer")
+            .description("This is a test timer")
+            .tags("tag", "value")
+            .register(Metrics.globalRegistry);
+
+    // when
+    timer.record(1, SECONDS);
+    timer.record(5, SECONDS);
+    timer.record(10_789, MILLISECONDS);
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusTimer.seconds")
+                    .hasDescription("This is a test timer")
+                    .hasUnit("s")
+                    .hasHistogramSatisfying(
+                        histogram ->
+                            histogram.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasSum(16.789)
+                                        .hasCount(3)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusTimer.seconds.max")
+                    .hasDescription("This is a test timer")
+                    .hasUnit("s")
+                    .hasDoubleGaugeSatisfying(
+                        gauge ->
+                            gauge.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasValue(10.789)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+  }
+
+  @Test
+  void testTimerCustomBucketBoundaryFormatting() {
+    // given
+    Timer timer =
+        Timer.builder("testPrometheusTimerBoundary")
+            .description("This is a test timer")
+            .tags("tag", "value")
+            .serviceLevelObjectives(Duration.ofMillis(300))
+            .register(Metrics.globalRegistry);
+
+    // when
+    timer.record(100, MILLISECONDS);
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testPrometheusTimerBoundary.seconds")
+                    .hasDescription("This is a test timer")
+                    .hasUnit("s")
+                    .hasHistogramSatisfying(
+                        histogram ->
+                            histogram.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasSum(0.1)
+                                        .hasCount(1)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value"))
+                                        .satisfies(
+                                            pointData -> {
+                                              assertThat(pointData.getBoundaries()).hasSize(1);
+                                              assertThat(
+                                                      Double.toString(
+                                                          pointData.getBoundaries().get(0)))
+                                                  .isEqualTo("0.3");
+                                            }))));
+  }
+}

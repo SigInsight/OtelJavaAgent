@@ -1,0 +1,116 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.extension.instrumentation.internal;
+
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+
+import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import net.bytebuddy.utility.JavaModule;
+
+/**
+ * This class is internal and is hence not for public use. Its APIs are unstable and can change at
+ * any time.
+ */
+public interface ExperimentalInstrumentationModule {
+
+  /**
+   * Register virtual field. First argument for the consumer is dot class name of the type where the
+   * field is added and the second argument is the dot class name of the field type.
+   */
+  default void registerVirtualFields(BiConsumer<String, String> virtualFieldRegistrar) {}
+
+  /**
+   * Returns a list of helper classes that will be defined in the class loader of the instrumented
+   * library.
+   */
+  default List<String> injectedClassNames() {
+    return emptyList();
+  }
+
+  /**
+   * By default every InstrumentationModule is loaded by an isolated classloader, even if multiple
+   * modules instrument the same application classloader.
+   *
+   * <p>Sometimes this is not desired, e.g. when instrumenting modular libraries such as the AWS
+   * SDK. In such cases the {@link InstrumentationModule}s which want to share a classloader can
+   * return the same group name from this method.
+   */
+  default String getModuleGroup() {
+    return getClass().getName();
+  }
+
+  /**
+   * Some instrumentations need to invoke classes which are present both in the agent classloader
+   * and the instrumented application classloader. By default, the classloader of the
+   * instrumentation would link those against the class provided by the agent. This setting allows
+   * to hide packages, so that matching classes are instead used from the application classloader.
+   *
+   * @return the list of packages (without trailing dots)
+   */
+  default List<String> agentPackagesToHide() {
+    return emptyList();
+  }
+
+  /**
+   * Some instrumentation need to access JPMS modules that are not accessible by default, this
+   * method provides a way to access those classes like the "--add-opens" JVM command.
+   *
+   * @return map of module to open as key, list of packages as value.
+   */
+  // TODO: when moving this method outside of experimental API, we need to decide using JavaModule
+  // instance or a class FQN in the map entry, as it could lead to some limitations
+  default Map<JavaModule, List<String>> jpmsModulesToOpen() {
+    return emptyMap();
+  }
+
+  /**
+   * Returns a list of instrumentation helper classes that are exposed to the application class
+   * loader.
+   *
+   * <p>When using non-inline advice helper classes are loaded into a separate class loader. Classes
+   * from that class loader aren't visible to the instrumented application. This method can be used
+   * to expose some of the helper classes to the application class loader, so that they can be
+   * loaded through the loadClass method of the application class loader. This can for example be
+   * used to add a SPI implementation that can be loaded via the ServiceLoader.
+   */
+  default List<String> exposedClassNames() {
+    return emptyList();
+  }
+
+  /**
+   * Allows instrumentation modules to choose whether the helper classes should be injected into the
+   * same class loader as the instrumented library, or into an isolated class loader.
+   */
+  default HelperClassStrategy helperClassStrategy() {
+    return HelperClassStrategy.DEFAULT;
+  }
+
+  /**
+   * This class is internal and is hence not for public use. Its APIs are unstable and can change at
+   * any time.
+   */
+  enum HelperClassStrategy {
+    /**
+     * Depending on whether the instrumentation uses inline advice or not, helper classes are either
+     * loaded in the same classloader as the instrumented library, or into an isolated classloader.
+     */
+    DEFAULT,
+    /**
+     * Helper classes are loaded in the same classloader as the instrumented library, and are
+     * visible to the application.
+     */
+    INJECTED,
+    /**
+     * Helper classes are loaded into an isolated classloader, and aren't visible to the
+     * application.
+     */
+    ISOLATED
+  }
+}

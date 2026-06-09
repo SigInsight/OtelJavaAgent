@@ -1,0 +1,163 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.pulsar.v2_8;
+
+import static io.opentelemetry.javaagent.instrumentation.pulsar.v2_8.telemetry.PulsarSingletons.startAndEndConsumerReceive;
+import static io.opentelemetry.javaagent.instrumentation.pulsar.v2_8.telemetry.PulsarSingletons.wrap;
+import static io.opentelemetry.javaagent.instrumentation.pulsar.v2_8.telemetry.PulsarSingletons.wrapBatch;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isProtected;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
+import io.opentelemetry.context.Context;
+import io.opentelemetry.instrumentation.api.internal.Timer;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.asm.Advice.AssignReturned;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+
+class ConsumerImplInstrumentation implements TypeInstrumentation {
+
+  @Override
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return namedOneOf(
+        "org.apache.pulsar.client.impl.ConsumerImpl",
+        "org.apache.pulsar.client.impl.MultiTopicsConsumerImpl");
+  }
+
+  @Override
+  public void transform(TypeTransformer transformer) {
+    transformer.applyAdviceToMethod(
+        isConstructor(), getClass().getName() + "$ConsumerConstructorAdvice");
+
+    // internalReceive will apply to Consumer#receive(long,TimeUnit)
+    // and called before MessageListener#receive.
+    transformer.applyAdviceToMethod(
+        isProtected()
+            .and(named("internalReceive"))
+            .and(takesArguments(2))
+            .and(takesArgument(1, named("java.util.concurrent.TimeUnit"))),
+        getClass().getName() + "$ConsumerInternalReceiveAdvice");
+    // internalReceive will apply to Consumer#receive()
+    transformer.applyAdviceToMethod(
+        isProtected().and(named("internalReceive")).and(takesArguments(0)),
+        getClass().getName() + "$ConsumerSyncReceiveAdvice");
+    // internalReceiveAsync will apply to Consumer#receiveAsync()
+    transformer.applyAdviceToMethod(
+        isProtected().and(named("internalReceiveAsync")).and(takesArguments(0)),
+        getClass().getName() + "$ConsumerAsyncReceiveAdvice");
+    // internalBatchReceiveAsync will apply to Consumer#batchReceive() and
+    // Consumer#batchReceiveAsync()
+    transformer.applyAdviceToMethod(
+        isProtected().and(named("internalBatchReceiveAsync")).and(takesArguments(0)),
+        getClass().getName() + "$ConsumerBatchAsyncReceiveAdvice");
+  }
+
+  @SuppressWarnings("unused")
+  public static class ConsumerConstructorAdvice {
+
+    @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
+    public static void after(
+        @Advice.This Consumer<?> consumer, @Advice.Argument(value = 0) PulsarClient client) {
+
+      PulsarClientImpl pulsarClient = (PulsarClientImpl) client;
+      String url = pulsarClient.getLookup().getServiceUrl();
+      VirtualFieldStore.inject(consumer, url);
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static class ConsumerInternalReceiveAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    public static Timer before() {
+      return Timer.start();
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class, inline = false)
+    public static void after(
+        @Advice.Enter Timer timer,
+        @Advice.This Consumer<?> consumer,
+        @Advice.Return @Nullable Message<?> message,
+        @Advice.Thrown @Nullable Throwable throwable) {
+      Context parent = Context.current();
+      Context current = startAndEndConsumerReceive(parent, message, timer, consumer, throwable);
+      if (current != null && throwable == null) {
+        // ConsumerBase#internalReceive(long,TimeUnit) will be called before
+        // ConsumerListener#receive(Consumer,Message), so, need to inject Context into Message.
+        VirtualFieldStore.inject(message, current);
+      }
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static class ConsumerSyncReceiveAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    public static Timer before() {
+      return Timer.start();
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class, inline = false)
+    public static void after(
+        @Advice.Enter Timer timer,
+        @Advice.This Consumer<?> consumer,
+        @Advice.Return @Nullable Message<?> message,
+        @Advice.Thrown @Nullable Throwable throwable) {
+      Context parent = Context.current();
+      startAndEndConsumerReceive(parent, message, timer, consumer, throwable);
+      // No need to inject context to message.
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static class ConsumerAsyncReceiveAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    public static Timer before() {
+      return Timer.start();
+    }
+
+    @AssignReturned.ToReturned
+    @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
+    public static CompletableFuture<Message<?>> after(
+        @Advice.This Consumer<?> consumer,
+        @Advice.Return CompletableFuture<Message<?>> future,
+        @Advice.Enter Timer timer) {
+      return wrap(future, timer, consumer);
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static class ConsumerBatchAsyncReceiveAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    public static Timer before() {
+      return Timer.start();
+    }
+
+    @AssignReturned.ToReturned
+    @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
+    public static CompletableFuture<Messages<?>> after(
+        @Advice.This Consumer<?> consumer,
+        @Advice.Return CompletableFuture<Messages<?>> future,
+        @Advice.Enter Timer timer) {
+      return wrapBatch(future, timer, consumer);
+    }
+  }
+}

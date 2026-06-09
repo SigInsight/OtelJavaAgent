@@ -1,0 +1,17 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.opentelemetryapi.v1_40.incubator.metrics;
+
+import io.opentelemetry.api.metrics.DoubleUpDownCounter;
+import io.opentelemetry.javaagent.instrumentation.opentelemetryapi.v1_10.metrics.ApplicationDoubleUpDownCounter;
+
+final class ApplicationDoubleUpDownCounter140Incubator extends ApplicationDoubleUpDownCounter
+    implements application.io.opentelemetry.api.incubator.metrics.ExtendedDoubleUpDownCounter {
+
+  ApplicationDoubleUpDownCounter140Incubator(DoubleUpDownCounter agentCounter) {
+    super(agentCounter);
+  }
+}

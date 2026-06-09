@@ -1,0 +1,114 @@
+plugins {
+  id("otel.javaagent-instrumentation")
+}
+
+muzzle {
+  pass {
+    group.set("org.elasticsearch.client")
+    module.set("transport")
+    versions.set("[6.0.0,)")
+    // version 8.8.0 depends on elasticsearch:elasticsearch-preallocate which doesn't exist
+    excludeDependency("org.elasticsearch:elasticsearch-preallocate")
+    assertInverse.set(true)
+  }
+  pass {
+    group.set("org.elasticsearch")
+    module.set("elasticsearch")
+    versions.set("[6.0.0,8.0.0)")
+    // version 8.8.0 depends on elasticsearch:elasticsearch-preallocate which doesn't exist
+    excludeDependency("org.elasticsearch:elasticsearch-preallocate")
+    assertInverse.set(true)
+  }
+}
+
+dependencies {
+  library("org.elasticsearch.client:transport:6.0.0")
+
+  implementation(project(":instrumentation:elasticsearch:elasticsearch-transport-common-5.0:javaagent"))
+
+  // Ensure no cross interference
+  testInstrumentation(project(":instrumentation:elasticsearch:elasticsearch-rest-5.0:javaagent"))
+  testInstrumentation(project(":instrumentation:apache-httpasyncclient-4.1:javaagent"))
+  testInstrumentation(project(":instrumentation:netty:netty-4.1:javaagent"))
+
+  testLibrary("org.elasticsearch.plugin:transport-netty4-client:6.0.0")
+
+  testImplementation(project(":instrumentation:elasticsearch:elasticsearch-transport-6.0:testing"))
+  testImplementation(project(":instrumentation:elasticsearch:elasticsearch-transport-common-5.0:testing"))
+  testImplementation("org.apache.logging.log4j:log4j-core:2.11.0")
+  testImplementation("org.apache.logging.log4j:log4j-api:2.11.0")
+}
+
+testing {
+  suites {
+    val elasticsearch6Test by registering(JvmTestSuite::class) {
+      dependencies {
+        val version = baseVersion("6.0.0").orLatest("6.4.+")
+        implementation("org.elasticsearch.client:transport:$version")
+        implementation("org.elasticsearch.plugin:transport-netty4-client:$version")
+        implementation(project(":instrumentation:elasticsearch:elasticsearch-transport-6.0:testing"))
+        implementation(project(":instrumentation:elasticsearch:elasticsearch-transport-common-5.0:testing"))
+      }
+    }
+
+    val elasticsearch65Test by registering(JvmTestSuite::class) {
+      dependencies {
+        val version = baseVersion("6.5.0").orLatest("6.+")
+        implementation("org.elasticsearch.client:transport:$version")
+        implementation("org.elasticsearch.plugin:transport-netty4-client:$version")
+        implementation(project(":instrumentation:elasticsearch:elasticsearch-transport-6.0:testing"))
+        implementation(project(":instrumentation:elasticsearch:elasticsearch-transport-common-5.0:testing"))
+      }
+    }
+
+    val elasticsearch7Test by registering(JvmTestSuite::class) {
+      dependencies {
+        val version = baseVersion("7.0.0").orLatest()
+        implementation("org.elasticsearch.client:transport:$version")
+        implementation("org.elasticsearch.plugin:transport-netty4-client:$version")
+        implementation(project(":instrumentation:elasticsearch:elasticsearch-transport-6.0:testing"))
+        implementation(project(":instrumentation:elasticsearch:elasticsearch-transport-common-5.0:testing"))
+      }
+    }
+  }
+}
+
+tasks {
+  withType<Test>().configureEach {
+    systemProperty("testLatestDeps", otelProps.testLatestDeps)
+
+    systemProperty("collectMetadata", otelProps.collectMetadata)
+  }
+
+  val testSuites = testing.suites.withType(JvmTestSuite::class)
+
+  val stableSemconvSuites = testSuites.map { suite ->
+    register<Test>("${suite.name}StableSemconv") {
+      testClassesDirs = suite.sources.output.classesDirs
+      classpath = suite.sources.runtimeClasspath
+
+      jvmArgs("-Dotel.semconv-stability.opt-in=database")
+      systemProperty("metadataConfig", "otel.semconv-stability.opt-in=database")
+    }
+  }
+
+  val experimentalSuites = testSuites.map { suite ->
+    register<Test>("${suite.name}Experimental") {
+      testClassesDirs = suite.sources.output.classesDirs
+      classpath = suite.sources.runtimeClasspath
+
+      jvmArgs("-Dotel.instrumentation.elasticsearch.experimental-span-attributes=true")
+      systemProperty("metadataConfig", "otel.instrumentation.elasticsearch.experimental-span-attributes=true")
+    }
+  }
+
+  check {
+    dependsOn(testing.suites, stableSemconvSuites, experimentalSuites)
+  }
+
+  if (otelProps.denyUnsafe) {
+    withType<Test>().configureEach {
+      enabled = false
+    }
+  }
+}

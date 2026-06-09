@@ -1,0 +1,144 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.jul;
+
+import static io.opentelemetry.semconv.incubating.ThreadIncubatingAttributes.THREAD_ID;
+import static io.opentelemetry.semconv.incubating.ThreadIncubatingAttributes.THREAD_NAME;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.logging.Level.CONFIG;
+import static java.util.logging.Level.FINE;
+import static java.util.logging.Level.FINER;
+import static java.util.logging.Level.FINEST;
+import static java.util.logging.Level.INFO;
+import static java.util.logging.Level.SEVERE;
+import static java.util.logging.Level.WARNING;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
+import io.opentelemetry.api.logs.LogRecordBuilder;
+import io.opentelemetry.api.logs.Severity;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.instrumentation.api.incubator.config.internal.DeclarativeConfigUtil;
+import java.util.logging.Formatter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+
+public class JavaUtilLoggingHelper {
+
+  private static final Formatter formatter = new AccessibleFormatter();
+
+  private static final boolean captureExperimentalAttributes =
+      DeclarativeConfigUtil.getInstrumentationConfig(GlobalOpenTelemetry.get(), "java_util_logging")
+          .getBoolean("experimental_log_attributes/development", false);
+
+  public static void capture(application.java.util.logging.Logger logger, LogRecord logRecord) {
+
+    if (!logger.isLoggable(logRecord.getLevel())) {
+      // this is already checked in most cases, except if Logger.log(LogRecord) was called directly
+      return;
+    }
+
+    String instrumentationName = logger.getName();
+    if (instrumentationName == null || instrumentationName.isEmpty()) {
+      instrumentationName = "ROOT";
+    }
+    LogRecordBuilder builder =
+        GlobalOpenTelemetry.get()
+            .getLogsBridge()
+            .loggerBuilder(instrumentationName)
+            .build()
+            .logRecordBuilder();
+    mapLogRecord(builder, logRecord);
+    builder.emit();
+  }
+
+  /**
+   * Map the {@link LogRecord} data model onto the {@link LogRecordBuilder}. Unmapped fields
+   * include:
+   *
+   * <ul>
+   *   <li>Fully qualified class name - {@link LogRecord#getSourceClassName()}
+   *   <li>Fully qualified method name - {@link LogRecord#getSourceMethodName()}
+   *   <li>Thread id - {@link LogRecord#getThreadID()}
+   * </ul>
+   */
+  private static void mapLogRecord(LogRecordBuilder builder, LogRecord logRecord) {
+    // message
+    String message = formatter.formatMessage(logRecord);
+    if (message != null) {
+      builder.setBody(message);
+    }
+
+    // time
+    // TODO (trask) use getInstant() for more precision on Java 9
+    long timestamp = logRecord.getMillis();
+    builder.setTimestamp(timestamp, MILLISECONDS);
+
+    // level
+    Level level = logRecord.getLevel();
+    if (level != null) {
+      builder.setSeverity(levelToSeverity(level));
+      builder.setSeverityText(level.getName());
+    }
+
+    AttributesBuilder attributes = Attributes.builder();
+
+    // throwable
+    Throwable throwable = logRecord.getThrown();
+    if (throwable != null) {
+      builder.setException(throwable);
+    }
+
+    if (captureExperimentalAttributes) {
+      Thread currentThread = Thread.currentThread();
+      attributes.put(THREAD_NAME, currentThread.getName());
+      attributes.put(THREAD_ID, currentThread.getId());
+    }
+
+    builder.setAllAttributes(attributes.build());
+
+    // span context
+    builder.setContext(Context.current());
+  }
+
+  private static Severity levelToSeverity(Level level) {
+    int lev = level.intValue();
+    if (lev <= FINEST.intValue()) {
+      return Severity.TRACE;
+    }
+    if (lev <= FINER.intValue()) {
+      return Severity.DEBUG;
+    }
+    if (lev <= FINE.intValue()) {
+      return Severity.DEBUG2;
+    }
+    if (lev <= CONFIG.intValue()) {
+      return Severity.DEBUG3;
+    }
+    if (lev <= INFO.intValue()) {
+      return Severity.INFO;
+    }
+    if (lev <= WARNING.intValue()) {
+      return Severity.WARN;
+    }
+    if (lev <= SEVERE.intValue()) {
+      return Severity.ERROR;
+    }
+    return Severity.FATAL;
+  }
+
+  // this is just needed for calling formatMessage in abstract super class
+  private static class AccessibleFormatter extends Formatter {
+
+    @Override
+    public String format(LogRecord record) {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  private JavaUtilLoggingHelper() {}
+}

@@ -1,0 +1,103 @@
+plugins {
+  id("otel.javaagent-instrumentation")
+}
+
+muzzle {
+  pass {
+    group.set("io.vertx")
+    module.set("vertx-rx-java2")
+    versions.set("[3.5.0,)")
+    assertInverse.set(true)
+  }
+}
+
+// The first Vert.x version that uses rx-java 2
+val vertxVersion = "3.5.0"
+
+dependencies {
+  compileOnly("io.vertx:vertx-web:$vertxVersion")
+  compileOnly("io.vertx:vertx-rx-java2:$vertxVersion")
+
+  testInstrumentation(project(":instrumentation:executors:javaagent"))
+  testInstrumentation(project(":instrumentation:jdbc:javaagent"))
+  testInstrumentation(project(":instrumentation:netty:netty-4.1:javaagent"))
+  testInstrumentation(project(":instrumentation:rxjava:rxjava-2.0:javaagent"))
+  testInstrumentation(project(":instrumentation:vertx:vertx-http-client:vertx-http-client-3.0:javaagent"))
+  testInstrumentation(project(":instrumentation:vertx:vertx-http-client:vertx-http-client-4.0:javaagent"))
+  testInstrumentation(project(":instrumentation:vertx:vertx-http-client:vertx-http-client-5.0:javaagent"))
+  testInstrumentation(project(":instrumentation:vertx:vertx-sql-client:vertx-sql-client-4.0:javaagent"))
+  testInstrumentation(project(":instrumentation:vertx:vertx-sql-client:vertx-sql-client-5.0:javaagent"))
+  testInstrumentation(project(":instrumentation:vertx:vertx-web-3.0:javaagent"))
+}
+
+testing {
+  suites {
+    val version35Test by registering(JvmTestSuite::class) {
+      dependencies {
+        val version = baseVersion("3.5.0").orLatest("3.+")
+        implementation("org.hsqldb:hsqldb:2.3.4")
+        compileOnly("io.vertx:vertx-codegen:$version")
+        implementation("io.vertx:vertx-web:$version")
+        implementation("io.vertx:vertx-rx-java2:$version")
+        implementation("io.vertx:vertx-web-client:$version")
+        implementation("io.vertx:vertx-jdbc-client:$version")
+        implementation("io.vertx:vertx-circuit-breaker:$version")
+      }
+    }
+
+    val version41Test by registering(JvmTestSuite::class) {
+      dependencies {
+        val version = baseVersion("4.1.0").orLatest("4.+")
+        implementation("org.hsqldb:hsqldb:2.3.4")
+        compileOnly("io.vertx:vertx-codegen:$version")
+        implementation("io.vertx:vertx-web:$version")
+        implementation("io.vertx:vertx-rx-java2:$version")
+        implementation("io.vertx:vertx-web-client:$version")
+        implementation("io.vertx:vertx-jdbc-client:$version")
+        implementation("io.vertx:vertx-circuit-breaker:$version")
+      }
+    }
+
+    val version5Test by registering(JvmTestSuite::class) {
+      dependencies {
+        val version = baseVersion("5.0.0").orLatest()
+        implementation("org.hsqldb:hsqldb:2.3.4")
+        compileOnly("io.vertx:vertx-codegen:$version")
+        implementation("io.vertx:vertx-web:$version")
+        implementation("io.vertx:vertx-rx-java2:$version")
+        implementation("io.vertx:vertx-web-client:$version")
+        implementation("io.vertx:vertx-jdbc-client:$version")
+        implementation("io.vertx:vertx-circuit-breaker:$version")
+      }
+    }
+  }
+}
+
+tasks {
+  named("compileVersion5TestJava", JavaCompile::class).configure {
+    options.release.set(11)
+  }
+
+  val stableSemconvSuites = testing.suites.withType(JvmTestSuite::class).map { suite ->
+    register<Test>("${suite.name}StableSemconv") {
+      testClassesDirs = suite.sources.output.classesDirs
+      classpath = suite.sources.runtimeClasspath
+
+      jvmArgs("-Dotel.semconv-stability.opt-in=database")
+    }
+  }
+
+  val testJavaVersion = otelProps.testJavaVersion ?: JavaVersion.current()
+  if (!testJavaVersion.isCompatibleWith(JavaVersion.VERSION_11)) {
+    named("version5Test", Test::class).configure {
+      enabled = false
+    }
+    named("version5TestStableSemconv", Test::class).configure {
+      enabled = false
+    }
+  }
+
+  check {
+    dependsOn(testing.suites, stableSemconvSuites)
+  }
+}

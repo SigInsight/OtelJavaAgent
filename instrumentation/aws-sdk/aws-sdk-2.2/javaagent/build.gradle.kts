@@ -1,0 +1,241 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+  id("otel.javaagent-instrumentation")
+}
+
+muzzle {
+  pass {
+    group.set("software.amazon.awssdk")
+    module.set("aws-core")
+    versions.set("[2.2.0,)")
+    skip("2.17.200") // broken AWS SDK release: sdk-core 2.17.200 was not published
+    assertInverse.set(true)
+    // Used by all SDK services, the only case it isn't is an SDK extension such as a custom HTTP
+    // client, which is not target of instrumentation anyways.
+    extraDependency("software.amazon.awssdk:protocol-core")
+
+    excludeInstrumentationName("aws-sdk-2.2-bedrock-runtime")
+    excludeInstrumentationName("aws-sdk-2.2-sqs")
+    excludeInstrumentationName("aws-sdk-2.2-sns")
+    excludeInstrumentationName("aws-sdk-2.2-lambda")
+  }
+
+  fail {
+    group.set("software.amazon.awssdk")
+    module.set("aws-core")
+    versions.set("[2.2.0,)")
+    // Used by all SDK services, the only case it isn't is an SDK extension such as a custom HTTP
+    // client, which is not target of instrumentation anyways.
+    extraDependency("software.amazon.awssdk:protocol-core")
+
+    // "fail" asserts that *all* the instrumentation modules fail to load, but the core one is
+    // actually expected to succeed, so exclude it from checks.
+    excludeInstrumentationName("aws-sdk-2.2-core")
+  }
+
+  pass {
+    group.set("software.amazon.awssdk")
+    module.set("sqs")
+    versions.set("[2.2.0,)")
+    assertInverse.set(true)
+    // Used by all SDK services, the only case it isn't is an SDK extension such as a custom HTTP
+    // client, which is not target of instrumentation anyways.
+    extraDependency("software.amazon.awssdk:protocol-core")
+
+    excludeInstrumentationName("aws-sdk-2.2-bedrock-runtime")
+    excludeInstrumentationName("aws-sdk-2.2-sns")
+    excludeInstrumentationName("aws-sdk-2.2-lambda")
+  }
+
+  pass {
+    group.set("software.amazon.awssdk")
+    module.set("sns")
+    versions.set("[2.2.0,)")
+    // Used by all SDK services, the only case it isn't is an SDK extension such as a custom HTTP
+    // client, which is not target of instrumentation anyways.
+    extraDependency("software.amazon.awssdk:protocol-core")
+
+    excludeInstrumentationName("aws-sdk-2.2-bedrock-runtime")
+    excludeInstrumentationName("aws-sdk-2.2-sqs")
+    excludeInstrumentationName("aws-sdk-2.2-lambda")
+  }
+  pass {
+    group.set("software.amazon.awssdk")
+    module.set("lambda")
+    versions.set("[2.17.0,)")
+    skip("2.17.200") // broken AWS SDK release: sdk-core 2.17.200 was not published
+    // Used by all SDK services, the only case it isn't is an SDK extension such as a custom HTTP
+    // client, which is not target of instrumentation anyways.
+    extraDependency("software.amazon.awssdk:protocol-core")
+
+    excludeInstrumentationName("aws-sdk-2.2-bedrock-runtime")
+    excludeInstrumentationName("aws-sdk-2.2-sqs")
+    excludeInstrumentationName("aws-sdk-2.2-sns")
+  }
+  pass {
+    group.set("software.amazon.awssdk")
+    module.set("bedrockruntime")
+    versions.set("[2.25.63,)")
+    // Used by all SDK services, the only case it isn't is an SDK extension such as a custom HTTP
+    // client, which is not target of instrumentation anyways.
+    extraDependency("software.amazon.awssdk:protocol-core")
+
+    excludeInstrumentationName("aws-sdk-2.2-lambda")
+    excludeInstrumentationName("aws-sdk-2.2-sqs")
+    excludeInstrumentationName("aws-sdk-2.2-sns")
+  }
+}
+
+dependencies {
+  implementation(project(":instrumentation:aws-sdk:aws-sdk-2.2:library"))
+
+  library("software.amazon.awssdk:aws-core:2.2.0")
+  library("software.amazon.awssdk:sqs:2.2.0")
+
+  // Don't use library to make sure base test is run with the floor version.
+  // bedrock runtime is tested separately in testBedrockRuntime.
+  // First release with Converse API
+  compileOnly("software.amazon.awssdk:bedrockruntime:2.25.63")
+
+  testImplementation(project(":instrumentation:aws-sdk:aws-sdk-2.2:testing"))
+  testImplementation("io.opentelemetry.contrib:opentelemetry-aws-xray-propagator")
+
+  // Make sure these don't add HTTP headers
+  testInstrumentation(project(":instrumentation:apache-httpclient:apache-httpclient-4.0:javaagent"))
+  testInstrumentation(project(":instrumentation:apache-httpclient:apache-httpclient-5.0:javaagent"))
+  testInstrumentation(project(":instrumentation:aws-sdk:aws-sdk-1.11:javaagent"))
+  testInstrumentation(project(":instrumentation:netty:netty-4.1:javaagent"))
+
+  testLibrary("software.amazon.awssdk:dynamodb:2.2.0")
+  testLibrary("software.amazon.awssdk:ec2:2.2.0")
+  testLibrary("software.amazon.awssdk:kinesis:2.2.0")
+  testLibrary("software.amazon.awssdk:lambda:2.2.0")
+  testLibrary("software.amazon.awssdk:rds:2.2.0")
+  testLibrary("software.amazon.awssdk:s3:2.2.0")
+  testLibrary("software.amazon.awssdk:ses:2.2.0")
+  testLibrary("software.amazon.awssdk:secretsmanager:2.2.0")
+  testLibrary("software.amazon.awssdk:sfn:2.2.0")
+  testLibrary("software.amazon.awssdk:sns:2.2.0")
+  testLibrary("software.amazon.awssdk:sqs:2.2.0")
+}
+
+testing {
+  suites {
+    val s3PresignerTest by registering(JvmTestSuite::class) {
+      dependencies {
+        val version = baseVersion("2.10.12").orLatest()
+        implementation("software.amazon.awssdk:s3:$version")
+        implementation(project(":instrumentation:aws-sdk:aws-sdk-2.2:library"))
+      }
+    }
+
+    val s3CrtTest by registering(JvmTestSuite::class) {
+      dependencies {
+        implementation("software.amazon.awssdk:s3:${baseVersion("2.27.21").orLatest()}")
+        implementation("software.amazon.awssdk.crt:aws-crt:${baseVersion("0.30.11").orLatest()}")
+        implementation(project(":instrumentation:aws-sdk:aws-sdk-2.2:library"))
+        implementation("org.testcontainers:testcontainers-localstack")
+      }
+
+      targets {
+        all {
+          testTask.configure {
+            usesService(gradle.sharedServices.registrations["testcontainersBuildService"].service)
+          }
+        }
+      }
+    }
+
+    val testBedrockRuntime by registering(JvmTestSuite::class) {
+      dependencies {
+        implementation(project(":instrumentation:aws-sdk:aws-sdk-2.2:testing"))
+        // 2.25.63 is the first release with Converse API
+        val version = baseVersion("2.25.63").orLatest()
+        implementation("software.amazon.awssdk:bedrockruntime:$version")
+      }
+
+      targets {
+        all {
+          testTask.configure {
+            // TODO run tests both with and without genai message capture
+            systemProperty("otel.instrumentation.genai.capture-message-content", "true")
+          }
+        }
+      }
+    }
+  }
+}
+
+tasks {
+  val testExperimentalSqs by registering(Test::class) {
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+
+    filter {
+      excludeTestsMatching("Aws2SqsSuppressReceiveSpansTest")
+    }
+    systemProperty("otel.instrumentation.aws-sdk.experimental-use-propagator-for-messaging", "true")
+    systemProperty("otel.instrumentation.messaging.experimental.receive-telemetry.enabled", "true")
+  }
+
+  val testReceiveSpansDisabled by registering(Test::class) {
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+
+    filter {
+      includeTestsMatching("Aws2SqsSuppressReceiveSpansTest")
+    }
+    include("**/Aws2SqsSuppressReceiveSpansTest.*")
+  }
+
+  val testStableSemconv by registering(Test::class) {
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+
+    filter {
+      excludeTestsMatching("Aws2SqsSuppressReceiveSpansTest")
+    }
+    systemProperty("otel.instrumentation.messaging.experimental.receive-telemetry.enabled", "true")
+    jvmArgs("-Dotel.semconv-stability.opt-in=database")
+
+    systemProperty("metadataConfig", "otel.semconv-stability.opt-in=database")
+  }
+
+  test {
+    filter {
+      excludeTestsMatching("Aws2SqsSuppressReceiveSpansTest")
+    }
+    systemProperty("otel.instrumentation.messaging.experimental.receive-telemetry.enabled", "true")
+  }
+
+  check {
+    dependsOn(testing.suites, testExperimentalSqs, testStableSemconv, testReceiveSpansDisabled)
+  }
+
+  withType<Test>().configureEach {
+    // TODO run tests both with and without experimental span attributes
+    systemProperty("otel.instrumentation.aws-sdk.experimental-span-attributes", "true")
+    systemProperty("otel.instrumentation.aws-sdk.experimental-record-individual-http-error", "true")
+    systemProperty("testLatestDeps", otelProps.testLatestDeps)
+    systemProperty("collectMetadata", otelProps.collectMetadata)
+  }
+
+  withType<ShadowJar>().configureEach {
+    mergeServiceFiles {
+      include("software/amazon/awssdk/global/handlers/execution.interceptors")
+    }
+    // mergeServiceFiles requires that duplicate strategy is set to include
+    filesMatching("software/amazon/awssdk/global/handlers/execution.interceptors") {
+      duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+  }
+
+  if (otelProps.denyUnsafe) {
+    // Aws2SqsTracingTest uses org.elasticmq:elasticmq-rest-sqs_2.13 that uses unsafe. Future
+    // versions are likely to fix this.
+    withType<Test>().configureEach {
+      enabled = false
+    }
+  }
+}

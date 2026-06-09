@@ -1,0 +1,101 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.hibernate.v6_0;
+
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.implementsInterface;
+import static io.opentelemetry.javaagent.instrumentation.hibernate.common.v3_3.OperationNameUtil.getOperationNameForQuery;
+import static io.opentelemetry.javaagent.instrumentation.hibernate.v6_0.Hibernate6Singletons.COMMON_QUERY_CONTRACT_SESSION_INFO;
+import static io.opentelemetry.javaagent.instrumentation.hibernate.v6_0.Hibernate6Singletons.instrumenter;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
+
+import io.opentelemetry.context.Context;
+import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import io.opentelemetry.javaagent.instrumentation.hibernate.common.v3_3.HibernateOperation;
+import io.opentelemetry.javaagent.instrumentation.hibernate.common.v3_3.HibernateOperationScope;
+import io.opentelemetry.javaagent.instrumentation.hibernate.common.v3_3.SessionInfo;
+import javax.annotation.Nullable;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.hibernate.query.CommonQueryContract;
+import org.hibernate.query.Query;
+import org.hibernate.query.spi.SqmQuery;
+
+class QueryInstrumentation implements TypeInstrumentation {
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderOptimization() {
+    return hasClassesNamed("org.hibernate.query.CommonQueryContract");
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return implementsInterface(named("org.hibernate.query.CommonQueryContract"));
+  }
+
+  @Override
+  public void transform(TypeTransformer transformer) {
+    transformer.applyAdviceToMethod(
+        // not instrumenting getSingleResult as it calls list that is instrumented and
+        // we don't want to record the NoResultException that it throws
+        namedOneOf(
+            "list",
+            "getResultList",
+            "stream",
+            "getResultStream",
+            "uniqueResult",
+            "getSingleResultOrNull",
+            "uniqueResultOptional",
+            "executeUpdate",
+            "scroll"),
+        getClass().getName() + "$QueryMethodAdvice");
+  }
+
+  @SuppressWarnings("unused")
+  public static class QueryMethodAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    @Nullable
+    public static HibernateOperationScope startMethod(@Advice.This CommonQueryContract query) {
+
+      if (HibernateOperationScope.enterDepthSkipCheck()) {
+        return null;
+      }
+
+      String queryString = null;
+      if (query instanceof Query) {
+        queryString = ((Query<?>) query).getQueryString();
+      }
+      if (query instanceof SqmQuery) {
+        try {
+          queryString = ((SqmQuery) query).getSqmStatement().toHqlString();
+        } catch (RuntimeException ignored) {
+          // ignore
+        }
+      }
+
+      SessionInfo sessionInfo = COMMON_QUERY_CONTRACT_SESSION_INFO.get(query);
+
+      Context parentContext = Java8BytecodeBridge.currentContext();
+      HibernateOperation hibernateOperation =
+          new HibernateOperation(getOperationNameForQuery(queryString), sessionInfo);
+
+      return HibernateOperationScope.start(hibernateOperation, parentContext, instrumenter());
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class, inline = false)
+    public static void endMethod(
+        @Advice.Thrown @Nullable Throwable throwable,
+        @Advice.Enter @Nullable HibernateOperationScope scope) {
+
+      HibernateOperationScope.end(scope, throwable);
+    }
+  }
+}

@@ -1,0 +1,44 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.servlet.v2_2;
+
+import io.opentelemetry.context.Context;
+import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
+import io.opentelemetry.instrumentation.servlet.common.internal.ServletRequestContext;
+import io.opentelemetry.instrumentation.servlet.common.internal.ServletResponseContext;
+import io.opentelemetry.javaagent.instrumentation.servlet.common.BaseServletHelper;
+import javax.annotation.Nullable;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class Servlet2Helper extends BaseServletHelper<HttpServletRequest, HttpServletResponse> {
+
+  Servlet2Helper(
+      Instrumenter<
+              ServletRequestContext<HttpServletRequest>,
+              ServletResponseContext<HttpServletResponse>>
+          instrumenter) {
+    super(instrumenter, Servlet2Accessor.INSTANCE);
+  }
+
+  public void end(
+      Context context,
+      ServletRequestContext<HttpServletRequest> requestContext,
+      HttpServletResponse response,
+      int statusCode,
+      @Nullable Throwable throwable) {
+
+    ServletResponseContext<HttpServletResponse> responseContext =
+        new ServletResponseContext<>(response);
+    responseContext.setStatus(statusCode);
+
+    instrumenter.end(context, requestContext, responseContext, throwable);
+  }
+
+  public Context updateContext(Context context, HttpServletRequest request) {
+    return addServletContextPath(context, request);
+  }
+}

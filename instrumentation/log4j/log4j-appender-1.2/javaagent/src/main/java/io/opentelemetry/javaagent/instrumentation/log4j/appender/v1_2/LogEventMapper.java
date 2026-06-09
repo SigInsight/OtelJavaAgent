@@ -1,0 +1,226 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.log4j.appender.v1_2;
+
+import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emitOldCodeSemconv;
+import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emitStableCodeSemconv;
+import static io.opentelemetry.semconv.CodeAttributes.CODE_FILE_PATH;
+import static io.opentelemetry.semconv.CodeAttributes.CODE_FUNCTION_NAME;
+import static io.opentelemetry.semconv.CodeAttributes.CODE_LINE_NUMBER;
+import static io.opentelemetry.semconv.OtelAttributes.OTEL_EVENT_NAME;
+import static io.opentelemetry.semconv.incubating.ThreadIncubatingAttributes.THREAD_ID;
+import static io.opentelemetry.semconv.incubating.ThreadIncubatingAttributes.THREAD_NAME;
+import static java.util.Collections.emptyList;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.logs.LogRecordBuilder;
+import io.opentelemetry.api.logs.Severity;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.instrumentation.api.incubator.config.internal.DeclarativeConfigUtil;
+import io.opentelemetry.instrumentation.api.internal.cache.Cache;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
+import org.apache.log4j.Category;
+import org.apache.log4j.MDC;
+import org.apache.log4j.Priority;
+import org.apache.log4j.spi.LocationInfo;
+
+public class LogEventMapper {
+
+  private static final Cache<String, AttributeKey<String>> mdcAttributeKeys = Cache.bounded(100);
+
+  public static final LogEventMapper INSTANCE = new LogEventMapper();
+
+  private static final AttributeKey<String> CODE_FILEPATH = AttributeKey.stringKey("code.filepath");
+  private static final AttributeKey<String> CODE_FUNCTION = AttributeKey.stringKey("code.function");
+  private static final AttributeKey<Long> CODE_LINENO = AttributeKey.longKey("code.lineno");
+  private static final AttributeKey<String> CODE_NAMESPACE =
+      AttributeKey.stringKey("code.namespace");
+  // copied from org.apache.log4j.Level because it was only introduced in 1.2.12
+  private static final int TRACE_INT = 5000;
+
+  private static final boolean captureExperimentalAttributes =
+      DeclarativeConfigUtil.getInstrumentationConfig(GlobalOpenTelemetry.get(), "log4j_appender")
+          .getBoolean("experimental_log_attributes/development", false);
+
+  private final List<AttributeKey<String>> captureMdcAttributeKeys;
+
+  // cached as an optimization
+  private final boolean captureAllMdcAttributes;
+
+  private final boolean captureCodeAttributes =
+      DeclarativeConfigUtil.getInstrumentationConfig(GlobalOpenTelemetry.get(), "log4j_appender")
+          .getBoolean("capture_code_attributes/development", false);
+
+  private LogEventMapper() {
+    List<String> captureMdcAttributes =
+        DeclarativeConfigUtil.getInstrumentationConfig(GlobalOpenTelemetry.get(), "log4j_appender")
+            .getScalarList("capture_mdc_attributes/development", String.class, emptyList());
+    this.captureAllMdcAttributes =
+        captureMdcAttributes.size() == 1 && captureMdcAttributes.get(0).equals("*");
+    if (captureAllMdcAttributes) {
+      this.captureMdcAttributeKeys = emptyList();
+    } else {
+      List<AttributeKey<String>> keys = new ArrayList<>(captureMdcAttributes.size());
+      for (String key : captureMdcAttributes) {
+        if (!OTEL_EVENT_NAME.getKey().equals(key)) {
+          keys.add(getMdcAttributeKey(key));
+        }
+      }
+      this.captureMdcAttributeKeys = keys;
+    }
+  }
+
+  public void capture(
+      String fqcn,
+      Category logger,
+      Priority level,
+      @Nullable Object message,
+      @Nullable Throwable throwable) {
+    String instrumentationName = logger.getName();
+    if (instrumentationName == null || instrumentationName.isEmpty()) {
+      instrumentationName = "ROOT";
+    }
+    LogRecordBuilder builder =
+        GlobalOpenTelemetry.get()
+            .getLogsBridge()
+            .loggerBuilder(instrumentationName)
+            .build()
+            .logRecordBuilder();
+
+    // message
+    if (message != null) {
+      builder.setBody(String.valueOf(message));
+    }
+
+    // level
+    if (level != null) {
+      builder.setSeverity(levelToSeverity(level));
+      builder.setSeverityText(level.toString());
+    }
+
+    // throwable
+    if (throwable != null) {
+      builder.setException(throwable);
+    }
+
+    captureMdcAttributes(builder);
+
+    if (captureExperimentalAttributes) {
+      Thread currentThread = Thread.currentThread();
+      builder.setAttribute(THREAD_NAME, currentThread.getName());
+      builder.setAttribute(THREAD_ID, currentThread.getId());
+    }
+
+    if (captureCodeAttributes) {
+      LocationInfo locationInfo = new LocationInfo(new Throwable(), fqcn);
+      String fileName = locationInfo.getFileName();
+      if (fileName != null) {
+        if (emitStableCodeSemconv()) {
+          builder.setAttribute(CODE_FILE_PATH, fileName);
+        }
+        if (emitOldCodeSemconv()) {
+          builder.setAttribute(CODE_FILEPATH, fileName);
+        }
+      }
+
+      if (emitStableCodeSemconv()) {
+        builder.setAttribute(
+            CODE_FUNCTION_NAME, locationInfo.getClassName() + "." + locationInfo.getMethodName());
+      }
+      if (emitOldCodeSemconv()) {
+        builder.setAttribute(CODE_NAMESPACE, locationInfo.getClassName());
+        builder.setAttribute(CODE_FUNCTION, locationInfo.getMethodName());
+      }
+
+      String lineNumber = locationInfo.getLineNumber();
+      int codeLineNo = -1;
+      if (!lineNumber.equals("?")) {
+        try {
+          codeLineNo = Integer.parseInt(lineNumber);
+        } catch (NumberFormatException ignored) {
+          // ignore
+        }
+      }
+      if (codeLineNo >= 0) {
+        if (emitStableCodeSemconv()) {
+          builder.setAttribute(CODE_LINE_NUMBER, (long) codeLineNo);
+        }
+        if (emitOldCodeSemconv()) {
+          builder.setAttribute(CODE_LINENO, (long) codeLineNo);
+        }
+      }
+    }
+
+    // span context
+    builder.setContext(Context.current());
+
+    builder.setTimestamp(Instant.now());
+    builder.emit();
+  }
+
+  private void captureMdcAttributes(LogRecordBuilder builder) {
+
+    Hashtable<?, ?> context = MDC.getContext();
+    if (context == null) {
+      return;
+    }
+
+    Object otelEventName = context.get(OTEL_EVENT_NAME.getKey());
+    if (otelEventName instanceof String) {
+      builder.setEventName((String) otelEventName);
+    }
+
+    if (captureAllMdcAttributes) {
+      for (Map.Entry<?, ?> entry : context.entrySet()) {
+        String key = String.valueOf(entry.getKey());
+        if (!OTEL_EVENT_NAME.getKey().equals(key)) {
+          Object value = entry.getValue();
+          if (value != null) {
+            builder.setAttribute(getMdcAttributeKey(key), value.toString());
+          }
+        }
+      }
+      return;
+    }
+
+    for (AttributeKey<String> attributeKey : captureMdcAttributeKeys) {
+      Object value = context.get(attributeKey.getKey());
+      if (value != null) {
+        builder.setAttribute(attributeKey, value.toString());
+      }
+    }
+  }
+
+  private static AttributeKey<String> getMdcAttributeKey(String key) {
+    return mdcAttributeKeys.computeIfAbsent(key, AttributeKey::stringKey);
+  }
+
+  private static Severity levelToSeverity(Priority level) {
+    int lev = level.toInt();
+    if (lev <= TRACE_INT) {
+      return Severity.TRACE;
+    }
+    if (lev <= Priority.DEBUG_INT) {
+      return Severity.DEBUG;
+    }
+    if (lev <= Priority.INFO_INT) {
+      return Severity.INFO;
+    }
+    if (lev <= Priority.WARN_INT) {
+      return Severity.WARN;
+    }
+    if (lev <= Priority.ERROR_INT) {
+      return Severity.ERROR;
+    }
+    return Severity.FATAL;
+  }
+}

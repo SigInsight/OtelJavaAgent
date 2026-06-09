@@ -1,0 +1,51 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package instrumentation;
+
+import static instrumentation.TestSingletons.STRING;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+
+import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.asm.Advice.AssignReturned;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
+class TestTypeInstrumentation implements TypeInstrumentation {
+
+  @Override
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return named("io.opentelemetry.javaagent.instrumentation.internal.reflection.TestClass");
+  }
+
+  @Override
+  public void transform(TypeTransformer transformer) {
+    transformer.applyAdviceToMethod(named("testMethod"), getClass().getName() + "$TestAdvice");
+    transformer.applyAdviceToMethod(named("testMethod2"), getClass().getName() + "$Test2Advice");
+  }
+
+  @SuppressWarnings("unused")
+  public static class TestAdvice {
+
+    @AssignReturned.ToReturned
+    @Advice.OnMethodExit(inline = false)
+    public static String methodExit(@Advice.This Runnable test) {
+      STRING.set(test, "instrumented");
+      return "instrumented";
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static class Test2Advice {
+
+    @AssignReturned.ToReturned
+    @Advice.OnMethodExit(inline = false)
+    public static String methodExit(@Advice.This Runnable test) {
+      return STRING.get(test);
+    }
+  }
+}

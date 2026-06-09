@@ -1,0 +1,84 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.instrumentation.micrometer.v1_5;
+
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+import static io.opentelemetry.instrumentation.micrometer.v1_5.AbstractCounterTest.INSTRUMENTATION_NAME;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Timer;
+import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
+import org.assertj.core.api.AbstractIterableAssert;
+import org.junit.jupiter.api.Test;
+
+@SuppressWarnings("PreferJavaTimeOverload")
+public abstract class AbstractTimerMillisecondsTest {
+
+  protected abstract InstrumentationExtension testing();
+
+  @Test
+  void testTimerWithBaseUnitMilliseconds() {
+    // given
+    Timer timer =
+        Timer.builder("testTimerMilliseconds")
+            .description("This is a test timer")
+            .tags("tag", "value")
+            .register(Metrics.globalRegistry);
+
+    // when
+    timer.record(1, SECONDS);
+    timer.record(10, SECONDS);
+    timer.record(12_345, MILLISECONDS);
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testTimerMilliseconds")
+                    .hasDescription("This is a test timer")
+                    .hasUnit("ms")
+                    .hasHistogramSatisfying(
+                        histogram ->
+                            histogram.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasSum(23_345)
+                                        .hasCount(3)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME,
+            metric ->
+                metric
+                    .hasName("testTimerMilliseconds.max")
+                    .hasDescription("This is a test timer")
+                    .hasUnit("ms")
+                    .hasDoubleGaugeSatisfying(
+                        gauge ->
+                            gauge.hasPointsSatisfying(
+                                point ->
+                                    point
+                                        .hasValue(12_345)
+                                        .hasAttributesSatisfyingExactly(
+                                            equalTo(stringKey("tag"), "value")))));
+
+    // when
+    Metrics.globalRegistry.remove(timer);
+    testing().clearData();
+    timer.record(12, SECONDS);
+
+    // then
+    testing()
+        .waitAndAssertMetrics(
+            INSTRUMENTATION_NAME, "testTimerMilliseconds", AbstractIterableAssert::isEmpty);
+  }
+}

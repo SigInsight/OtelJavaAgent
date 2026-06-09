@@ -1,0 +1,89 @@
+import com.google.protobuf.gradle.*
+
+plugins {
+  id("otel.javaagent-instrumentation")
+  id("com.google.protobuf")
+}
+
+muzzle {
+  pass {
+    group.set("com.linecorp.armeria")
+    module.set("armeria-grpc")
+    versions.set("[1.14.0,)")
+    assertInverse.set(true)
+  }
+}
+
+dependencies {
+  library("com.linecorp.armeria:armeria-grpc:1.14.0")
+  implementation(project(":instrumentation:grpc-1.6:library"))
+
+  testInstrumentation(project(":instrumentation:netty:netty-4.1:javaagent"))
+  testInstrumentation(project(":instrumentation:grpc-1.6:javaagent"))
+
+  testLibrary("com.linecorp.armeria:armeria-junit5:1.14.0")
+}
+
+tasks.named<Checkstyle>("checkstyleTest") {
+  // exclude generated classes
+  exclude("**/example/**")
+}
+
+protobuf {
+  protoc {
+    val protocVersion = if (otelProps.testLatestDeps) "3.25.5" else "3.19.2"
+    artifact = "com.google.protobuf:protoc:$protocVersion"
+  }
+  plugins {
+    id("grpc") {
+      val grpcVersion = if (otelProps.testLatestDeps) "1.68.1" else "1.43.2"
+      artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion"
+    }
+  }
+  generateProtoTasks {
+    all().configureEach {
+      plugins {
+        id("grpc")
+      }
+    }
+  }
+}
+
+afterEvaluate {
+  // Classpath when compiling protos, we add dependency management directly
+  // since it doesn't follow Gradle conventions of naming / properties.
+  dependencies {
+    add("compileProtoPath", platform(project(":dependencyManagement")))
+    add("testCompileProtoPath", platform(project(":dependencyManagement")))
+  }
+}
+
+tasks {
+  withType<Test>().configureEach {
+    systemProperty("collectMetadata", otelProps.collectMetadata)
+  }
+
+  val testStableSemconv by registering(Test::class) {
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dotel.semconv-stability.opt-in=rpc")
+    systemProperty("metadataConfig", "otel.semconv-stability.opt-in=rpc")
+  }
+
+  val testBothSemconv by registering(Test::class) {
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dotel.semconv-stability.opt-in=rpc/dup")
+    systemProperty("metadataConfig", "otel.semconv-stability.opt-in=rpc/dup")
+  }
+
+  check {
+    dependsOn(testStableSemconv, testBothSemconv)
+  }
+}
+
+if (otelProps.denyUnsafe) {
+  tasks.withType<Test>().configureEach {
+    enabled = false
+  }
+}

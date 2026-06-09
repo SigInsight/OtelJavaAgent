@@ -1,0 +1,50 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.awssdk.v2_2;
+
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
+import static net.bytebuddy.matcher.ElementMatchers.none;
+
+import com.google.auto.service.AutoService;
+import io.opentelemetry.instrumentation.awssdk.v2_2.internal.LambdaImpl;
+import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
+
+@AutoService(InstrumentationModule.class)
+public class LambdaInstrumentationModule extends AbstractAwsSdkInstrumentationModule {
+
+  public LambdaInstrumentationModule() {
+    super("aws-sdk-2.2-lambda");
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // this instrumentation module targets software.amazon.awssdk:lambda
+    return hasClassesNamed(
+        // added in 2.2.0
+        "software.amazon.awssdk.services.lambda.model.InvokeRequest",
+        // added in 2.17.0 (via software.amazon.awssdk:json-utils 2.17.0)
+        "software.amazon.awssdk.protocols.jsoncore.JsonNode");
+  }
+
+  @Override
+  public void doTransform(TypeTransformer transformer) {
+    transformer.applyAdviceToMethod(none(), getClass().getName() + "$RegisterAdvice");
+  }
+
+  @SuppressWarnings("unused")
+  public static class RegisterAdvice {
+    @Advice.OnMethodExit(inline = false)
+    public static void onExit() {
+      // using LambdaImpl class here to make sure it is available from LambdaAccess
+      // (injected into app classloader) and checked by Muzzle
+      throw new UnsupportedOperationException(
+          LambdaImpl.class.getName() + " referencing for muzzle, should never be actually called");
+    }
+  }
+}

@@ -1,0 +1,427 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.influxdb.v2_4;
+
+import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emitStableDatabaseSemconv;
+import static io.opentelemetry.instrumentation.testing.junit.db.DbClientMetricsTestUtil.assertDurationMetric;
+import static io.opentelemetry.instrumentation.testing.junit.db.SemconvStabilityUtil.maybeStable;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
+import static io.opentelemetry.semconv.ServerAttributes.SERVER_ADDRESS;
+import static io.opentelemetry.semconv.ServerAttributes.SERVER_PORT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAME;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAMESPACE;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_OPERATION;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_QUERY_SUMMARY;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM_NAME;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DbSystemNameIncubatingValues.INFLUXDB;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.instrumentation.testing.internal.AutoCleanupExtension;
+import io.opentelemetry.instrumentation.testing.junit.AgentInstrumentationExtension;
+import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import org.influxdb.InfluxDB;
+import org.influxdb.InfluxDBFactory;
+import org.influxdb.dto.BatchPoints;
+import org.influxdb.dto.Point;
+import org.influxdb.dto.Query;
+import org.influxdb.dto.QueryResult;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.testcontainers.containers.GenericContainer;
+
+// ignore using deprecated createDatabase and deleteDatabase methods warning.
+@SuppressWarnings("deprecation")
+@TestInstance(Lifecycle.PER_CLASS)
+class InfluxDbClientTest {
+
+  @RegisterExtension
+  private static final InstrumentationExtension testing = AgentInstrumentationExtension.create();
+
+  @RegisterExtension
+  private static final AutoCleanupExtension cleanup = AutoCleanupExtension.create();
+
+  private static final GenericContainer<?> influxDbServer =
+      new GenericContainer<>("influxdb:1.8.10-alpine").withExposedPorts(8086);
+
+  private static InfluxDB influxDb;
+
+  private static final String DATABASE_NAME = "mydb";
+
+  private static String host;
+
+  private static int port;
+
+  @BeforeAll
+  void setup() {
+    cleanup.deferAfterAll(influxDbServer::stop);
+    influxDbServer.start();
+    port = influxDbServer.getMappedPort(8086);
+    host = influxDbServer.getHost();
+    String serverUrl = "http://" + host + ":" + port + "/";
+    String username = "root";
+    String password = "root";
+    influxDb = InfluxDBFactory.connect(serverUrl, username, password);
+    cleanup.deferAfterAll(influxDb);
+    influxDb.createDatabase(DATABASE_NAME);
+    cleanup.deferAfterAll(() -> influxDb.deleteDatabase(DATABASE_NAME));
+  }
+
+  @Test
+  void testQueryAndModifyWithOneArgument() {
+    String dbName = DATABASE_NAME + "2";
+    influxDb.createDatabase(dbName);
+    BatchPoints batchPoints =
+        BatchPoints.database(dbName).tag("async", "true").retentionPolicy("autogen").build();
+    Point point1 =
+        Point.measurement("cpu")
+            .tag("atag", "test")
+            .addField("idle", 90L)
+            .addField("usertime", 9L)
+            .addField("system", 1L)
+            .build();
+    Point point2 =
+        Point.measurement("disk")
+            .tag("atag", "test")
+            .addField("used", 80L)
+            .addField("free", 1L)
+            .build();
+    batchPoints.point(point1);
+    batchPoints.point(point2);
+    influxDb.write(batchPoints);
+    Query query = new Query("SELECT * FROM cpu GROUP BY *", dbName);
+    QueryResult result = influxDb.query(query);
+    assertThat(result.getResults().get(0).getSeries().get(0).getTags()).isNotEmpty();
+    influxDb.deleteDatabase(dbName);
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("CREATE DATABASE " + dbName)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), dbName),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(maybeStable(DB_OPERATION), "CREATE DATABASE"))),
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("WRITE " + dbName)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), dbName),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(maybeStable(DB_OPERATION), "WRITE"))),
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName(emitStableDatabaseSemconv() ? "SELECT cpu" : "SELECT " + dbName)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), dbName),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(maybeStable(DB_STATEMENT), "SELECT * FROM cpu GROUP BY *"),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT cpu" : null))),
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("DROP DATABASE " + dbName)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), dbName),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(maybeStable(DB_OPERATION), "DROP DATABASE"))));
+  }
+
+  @Test
+  void testQueryWithTwoArguments() {
+    Query query = new Query("SELECT * FROM cpu_load where test1 = 'influxDb'", DATABASE_NAME);
+    influxDb.query(query, MILLISECONDS);
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT cpu_load"
+                                : "SELECT " + DATABASE_NAME)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), DATABASE_NAME),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_STATEMENT),
+                                "SELECT * FROM cpu_load where test1 = ?"),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT cpu_load" : null))));
+
+    assertDurationMetric(
+        testing,
+        "io.opentelemetry.influxdb-2.4",
+        DB_SYSTEM_NAME,
+        DB_NAMESPACE,
+        DB_QUERY_SUMMARY,
+        SERVER_ADDRESS,
+        SERVER_PORT);
+  }
+
+  @Test
+  void testQueryWithThreeArguments() throws InterruptedException {
+    Query query =
+        new Query(
+            "SELECT * FROM cpu_load where time >= '2022-01-01T08:00:00Z' AND time <= '2022-01-01T20:00:00Z'",
+            DATABASE_NAME);
+    BlockingQueue<QueryResult> queue = new LinkedBlockingQueue<>();
+
+    influxDb.query(query, 2, result -> queue.add(result));
+    queue.poll(20, SECONDS);
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT cpu_load"
+                                : "SELECT " + DATABASE_NAME)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), DATABASE_NAME),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_STATEMENT),
+                                "SELECT * FROM cpu_load where time >= ? AND time <= ?"),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT cpu_load" : null))));
+  }
+
+  @Test
+  void testQueryWithThreeArgumentsCallback() throws InterruptedException {
+    Query query = new Query("SELECT * FROM cpu_load", DATABASE_NAME);
+    BlockingQueue<QueryResult> queue = new LinkedBlockingQueue<>();
+
+    influxDb.query(query, 2, result -> queue.add(result));
+    queue.poll(20, SECONDS);
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT cpu_load"
+                                : "SELECT " + DATABASE_NAME)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), DATABASE_NAME),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(maybeStable(DB_STATEMENT), "SELECT * FROM cpu_load"),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "SELECT cpu_load" : null))));
+  }
+
+  @Test
+  void testQueryWithFiveArguments() throws InterruptedException {
+    CountDownLatch countDownLatch = new CountDownLatch(1);
+    Query query =
+        new Query(
+            "SELECT MEAN(water_level) FROM h2o_feet where time = '2022-01-01T08:00:00Z'; SELECT water_level FROM h2o_feet LIMIT 2",
+            DATABASE_NAME);
+    testing.runWithSpan(
+        "parent",
+        () -> {
+          influxDb.query(
+              query,
+              10,
+              (cancellable, queryResult) -> countDownLatch.countDown(),
+              () -> testing.runWithSpan("child", () -> {}),
+              throwable -> {});
+        });
+    assertThat(countDownLatch.await(10, SECONDS)).isTrue();
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent").hasKind(SpanKind.INTERNAL).hasNoParent(),
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv()
+                                ? "SELECT h2o_feet; SELECT h2o_feet"
+                                : "SELECT " + DATABASE_NAME)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), DATABASE_NAME),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(
+                                maybeStable(DB_STATEMENT),
+                                "SELECT MEAN(water_level) FROM h2o_feet where time = ?; SELECT water_level FROM h2o_feet LIMIT ?"),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv()
+                                    ? "SELECT h2o_feet; SELECT h2o_feet"
+                                    : null)),
+                span ->
+                    span.hasName("child").hasKind(SpanKind.INTERNAL).hasParent(trace.getSpan(0))));
+  }
+
+  @Test
+  void testQueryFailedWithFiveArguments() throws InterruptedException {
+    CountDownLatch countDownLatchFailure = new CountDownLatch(1);
+    Query query = new Query("SELECT MEAN(water_level) FROM;", DATABASE_NAME);
+    testing.runWithSpan(
+        "parent",
+        () -> {
+          influxDb.query(
+              query,
+              10,
+              (cancellable, queryResult) -> {},
+              () -> {},
+              throwable -> {
+                testing.runWithSpan("child", () -> {});
+                countDownLatchFailure.countDown();
+              });
+        });
+    assertThat(countDownLatchFailure.await(10, SECONDS)).isTrue();
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent").hasKind(SpanKind.INTERNAL).hasNoParent(),
+                span ->
+                    span.hasName(emitStableDatabaseSemconv() ? "SELECT" : "SELECT " + DATABASE_NAME)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasParent(trace.getSpan(0))
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), DATABASE_NAME),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(
+                                maybeStable(DB_OPERATION),
+                                emitStableDatabaseSemconv() ? null : "SELECT"),
+                            equalTo(maybeStable(DB_STATEMENT), "SELECT MEAN(water_level) FROM;"),
+                            equalTo(
+                                DB_QUERY_SUMMARY, emitStableDatabaseSemconv() ? "SELECT" : null)),
+                span ->
+                    span.hasName("child").hasKind(SpanKind.INTERNAL).hasParent(trace.getSpan(0))));
+  }
+
+  @Test
+  void testWriteWithFourArguments() {
+    String measurement = "cpu_load";
+    List<String> records = new ArrayList<>();
+    records.add(measurement + ",atag=test1 idle=100,usertime=10,system=1 1485273600");
+    influxDb.write(DATABASE_NAME, "autogen", InfluxDB.ConsistencyLevel.ONE, records);
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("WRITE " + DATABASE_NAME)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), DATABASE_NAME),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(maybeStable(DB_OPERATION), "WRITE"))));
+  }
+
+  @Test
+  void testWriteWithFiveArguments() {
+    String measurement = "cpu_load";
+    List<String> records = new ArrayList<>();
+    records.add(measurement + ",atag=test1 idle=100,usertime=10,system=1 1485273600");
+    influxDb.write(DATABASE_NAME, "autogen", InfluxDB.ConsistencyLevel.ONE, SECONDS, records);
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName("WRITE " + DATABASE_NAME)
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), DATABASE_NAME),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(maybeStable(DB_OPERATION), "WRITE"))));
+  }
+
+  @Test
+  void testWriteWithUdp() {
+    List<String> lineProtocols = new ArrayList<>();
+    for (int i = 0; i < 2000; i++) {
+      Point point = Point.measurement("udp_single_poit").addField("v", i).build();
+      lineProtocols.add(point.lineProtocol());
+    }
+    influxDb.write(port, lineProtocols);
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    span.hasName(
+                            emitStableDatabaseSemconv() ? "WRITE " + host + ":" + port : "WRITE")
+                        .hasKind(SpanKind.CLIENT)
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), INFLUXDB),
+                            equalTo(maybeStable(DB_NAME), null),
+                            equalTo(SERVER_ADDRESS, host),
+                            equalTo(SERVER_PORT, port),
+                            equalTo(maybeStable(DB_OPERATION), "WRITE"))));
+  }
+}

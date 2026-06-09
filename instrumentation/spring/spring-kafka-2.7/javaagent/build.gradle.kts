@@ -1,0 +1,123 @@
+plugins {
+  id("otel.javaagent-instrumentation")
+  id("otel.nullaway-conventions")
+}
+
+muzzle {
+  pass {
+    group.set("org.springframework.kafka")
+    module.set("spring-kafka")
+    versions.set("[2.7.0,)")
+    assertInverse.set(true)
+  }
+}
+
+dependencies {
+  compileOnly("com.google.auto.value:auto-value-annotations")
+  annotationProcessor("com.google.auto.value:auto-value")
+
+  bootstrap(project(":instrumentation:kafka:kafka-clients:kafka-clients-0.11:bootstrap"))
+  bootstrap(project(":instrumentation:spring:spring-scheduling-3.1:bootstrap"))
+  implementation(project(":instrumentation:kafka:kafka-clients:kafka-clients-common-0.11:library"))
+  implementation(project(":instrumentation:spring:spring-kafka-2.7:library"))
+
+  library("org.springframework.kafka:spring-kafka:2.7.0")
+
+  testInstrumentation(project(":instrumentation:kafka:kafka-clients:kafka-clients-0.11:javaagent"))
+  testInstrumentation(project(":instrumentation:spring:spring-scheduling-3.1:javaagent"))
+
+  testImplementation(project(":instrumentation:spring:spring-kafka-2.7:testing"))
+
+  testLibrary("org.springframework.boot:spring-boot-starter-test:2.5.3")
+  testLibrary("org.springframework.boot:spring-boot-starter:2.5.3")
+  testLibrary("org.testcontainers:testcontainers-kafka")
+  latestDepTestLibrary("org.springframework.boot:spring-boot-starter-kafka:latest.release")
+}
+
+testing {
+  suites {
+    val testNoReceiveTelemetry by registering(JvmTestSuite::class) {
+      dependencies {
+        implementation(project(":instrumentation:spring:spring-kafka-2.7:testing"))
+
+        // the "library" configuration is not recognized by the test suite plugin
+        val springKafkaVersion = baseVersion("2.7.0").orLatest()
+        val springBootVersion = baseVersion("2.5.3").orLatest()
+        implementation("org.springframework.kafka:spring-kafka:$springKafkaVersion")
+        implementation("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
+        implementation("org.springframework.boot:spring-boot-starter:$springBootVersion")
+
+        if (otelProps.testLatestDeps) {
+          implementation("org.springframework.boot:spring-boot-starter-kafka:latest.release")
+        }
+      }
+
+      targets {
+        all {
+          testTask.configure {
+            jvmArgs("-Dotel.instrumentation.kafka.experimental-span-attributes=false")
+            jvmArgs("-Dotel.instrumentation.messaging.experimental.receive-telemetry.enabled=false")
+          }
+        }
+      }
+    }
+  }
+}
+
+tasks {
+  withType<Test>().configureEach {
+    usesService(gradle.sharedServices.registrations["testcontainersBuildService"].service)
+    systemProperty("testLatestDeps", otelProps.testLatestDeps)
+    systemProperty("collectMetadata", otelProps.collectMetadata)
+  }
+
+  val testExperimental by registering(Test::class) {
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+
+    jvmArgs("-Dotel.instrumentation.messaging.experimental.receive-telemetry.enabled=true")
+    jvmArgs("-Dotel.instrumentation.kafka.experimental-span-attributes=true")
+    systemProperty(
+      "metadataConfig",
+      "otel.instrumentation.messaging.experimental.receive-telemetry.enabled=true,otel.instrumentation.kafka.experimental-span-attributes=true",
+    )
+  }
+
+  test {
+    jvmArgs("-Dotel.instrumentation.messaging.experimental.receive-telemetry.enabled=true")
+    systemProperty(
+      "metadataConfig",
+      "otel.instrumentation.messaging.experimental.receive-telemetry.enabled=true",
+    )
+  }
+
+  check {
+    dependsOn(testing.suites, testExperimental)
+  }
+}
+
+// spring 6 (which spring-kafka 3.+ uses) requires java 17
+if (otelProps.testLatestDeps) {
+  otelJava {
+    minJavaVersionSupported.set(JavaVersion.VERSION_17)
+  }
+}
+
+// spring 6 uses slf4j 2.0
+if (!otelProps.testLatestDeps) {
+  configurations {
+    listOf(
+      testRuntimeClasspath,
+      named("testNoReceiveTelemetryRuntimeClasspath"),
+    )
+      .forEach {
+        it.configure {
+          resolutionStrategy {
+            // requires old logback (and therefore also old slf4j)
+            force("ch.qos.logback:logback-classic:1.2.11")
+            force("org.slf4j:slf4j-api:1.7.36")
+          }
+        }
+      }
+  }
+}

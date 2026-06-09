@@ -1,0 +1,18 @@
+plugins {
+  id("otel.javaagent-instrumentation")
+}
+
+muzzle {
+  pass {
+    coreJdk.set(true)
+  }
+}
+
+dependencies {
+  implementation(project(":instrumentation:java-http-server:library"))
+  testImplementation(project(":instrumentation:java-http-server:testing"))
+}
+
+tasks.test {
+  systemProperty("collectMetadata", otelProps.collectMetadata)
+}

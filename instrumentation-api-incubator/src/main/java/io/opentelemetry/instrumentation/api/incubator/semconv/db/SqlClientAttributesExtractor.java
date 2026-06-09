@@ -1,0 +1,166 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.instrumentation.api.incubator.semconv.db;
+
+import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emitOldDatabaseSemconv;
+import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emitStableDatabaseSemconv;
+import static io.opentelemetry.semconv.DbAttributes.DB_OPERATION_BATCH_SIZE;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_SUMMARY;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_TEXT;
+import static io.opentelemetry.semconv.DbAttributes.DB_STORED_PROCEDURE_NAME;
+
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.AttributesBuilder;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor;
+import io.opentelemetry.instrumentation.api.internal.SpanKey;
+import io.opentelemetry.instrumentation.api.internal.SpanKeyProvider;
+import io.opentelemetry.instrumentation.api.semconv.network.ServerAttributesExtractor;
+import io.opentelemetry.instrumentation.api.semconv.network.internal.InternalNetworkAttributesExtractor;
+import java.util.Collection;
+import javax.annotation.Nullable;
+
+/**
+ * Extractor of <a
+ * href="https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-spans.md">database
+ * attributes</a>. This class is designed with SQL (or SQL-like) database clients in mind.
+ *
+ * <p>It sets the same set of attributes as {@link DbClientAttributesExtractor} plus an additional
+ * <code>db.sql.table</code> attribute. The raw SQL statements returned by the {@link
+ * SqlClientAttributesGetter#getRawQueryTexts(Object)} method are sanitized before use, all
+ * statement parameters are removed.
+ */
+public final class SqlClientAttributesExtractor<REQUEST, RESPONSE>
+    implements AttributesExtractor<REQUEST, RESPONSE>, SpanKeyProvider {
+
+  // copied from DbIncubatingAttributes
+  private static final AttributeKey<String> DB_OPERATION = AttributeKey.stringKey("db.operation");
+  private static final AttributeKey<String> DB_STATEMENT = AttributeKey.stringKey("db.statement");
+
+  /** Creates the SQL client attributes extractor with default configuration. */
+  public static <REQUEST, RESPONSE> AttributesExtractor<REQUEST, RESPONSE> create(
+      SqlClientAttributesGetter<REQUEST, RESPONSE> getter) {
+    return SqlClientAttributesExtractor.builder(getter).build();
+  }
+
+  /**
+   * Returns a new {@link SqlClientAttributesExtractorBuilder} that can be used to configure the SQL
+   * client attributes extractor.
+   */
+  public static <REQUEST, RESPONSE> SqlClientAttributesExtractorBuilder<REQUEST, RESPONSE> builder(
+      SqlClientAttributesGetter<REQUEST, RESPONSE> getter) {
+    return new SqlClientAttributesExtractorBuilder<>(getter);
+  }
+
+  private final SqlClientAttributesGetter<REQUEST, RESPONSE> getter;
+  private final InternalNetworkAttributesExtractor<REQUEST, RESPONSE> internalNetworkExtractor;
+  private final ServerAttributesExtractor<REQUEST, RESPONSE> serverAttributesExtractor;
+  @Nullable private final AttributeKey<String> oldSemconvTableAttribute;
+  private final boolean querySanitizationEnabled;
+  private final boolean captureQueryParameters;
+
+  SqlClientAttributesExtractor(
+      SqlClientAttributesGetter<REQUEST, RESPONSE> getter,
+      @Nullable AttributeKey<String> oldSemconvTableAttribute,
+      boolean querySanitizationEnabled,
+      boolean captureQueryParameters) {
+    this.getter = getter;
+    this.oldSemconvTableAttribute = oldSemconvTableAttribute;
+    // capturing query parameters disables query sanitization
+    this.querySanitizationEnabled = !captureQueryParameters && querySanitizationEnabled;
+    this.captureQueryParameters = captureQueryParameters;
+    internalNetworkExtractor =
+        new InternalNetworkAttributesExtractor<>(getter, emitOldDatabaseSemconv(), false);
+    serverAttributesExtractor = ServerAttributesExtractor.create(getter);
+  }
+
+  @SuppressWarnings("deprecation") // until old db semconv are dropped
+  @Override
+  public void onStart(AttributesBuilder attributes, Context parentContext, REQUEST request) {
+    Collection<String> rawQueryTexts = getter.getRawQueryTexts(request);
+    SqlDialect dialect = getter.getSqlDialect(request);
+
+    Long batchSize = getter.getDbOperationBatchSize(request);
+    boolean isBatch = batchSize != null && batchSize > 1;
+
+    if (emitOldDatabaseSemconv()) {
+      if (rawQueryTexts.size() == 1) { // for backcompat(?)
+        String rawQueryText = rawQueryTexts.iterator().next();
+        SqlQuery analyzedQuery = SqlQueryAnalyzerUtil.analyze(rawQueryText, dialect);
+        String operationName = analyzedQuery.getOperationName();
+        attributes.put(
+            DB_STATEMENT, querySanitizationEnabled ? analyzedQuery.getQueryText() : rawQueryText);
+        attributes.put(DB_OPERATION, operationName);
+        if (oldSemconvTableAttribute != null) {
+          attributes.put(oldSemconvTableAttribute, analyzedQuery.getCollectionName());
+        }
+      }
+    }
+
+    if (emitStableDatabaseSemconv()) {
+      if (isBatch) {
+        attributes.put(DB_OPERATION_BATCH_SIZE, batchSize);
+      }
+      boolean parameterizedQuery = getter.isParameterizedQuery(request);
+      boolean shouldSanitize = querySanitizationEnabled && !parameterizedQuery;
+      if (rawQueryTexts.size() == 1) {
+        String rawQueryText = rawQueryTexts.iterator().next();
+        SqlQuery analyzedQuery = SqlQueryAnalyzerUtil.analyzeWithSummary(rawQueryText, dialect);
+        attributes.put(DB_QUERY_TEXT, shouldSanitize ? analyzedQuery.getQueryText() : rawQueryText);
+        String querySummary = analyzedQuery.getQuerySummary();
+        attributes.put(
+            DB_QUERY_SUMMARY,
+            isBatch && querySummary != null ? "BATCH " + querySummary : querySummary);
+        attributes.put(DB_STORED_PROCEDURE_NAME, analyzedQuery.getStoredProcedureName());
+      } else if (rawQueryTexts.size() > 1) {
+        MultiQuery multiQuery =
+            MultiQuery.analyzeWithSummary(
+                getter.getRawQueryTexts(request), dialect, shouldSanitize);
+        attributes.put(DB_QUERY_TEXT, join("; ", multiQuery.getQueryTexts()));
+        attributes.put(DB_QUERY_SUMMARY, multiQuery.getQuerySummary());
+        attributes.put(DB_STORED_PROCEDURE_NAME, multiQuery.getStoredProcedureName());
+      }
+    }
+
+    // calling this last so explicit getDbOperationName(), getDbCollectionName(),
+    // getDbQueryText(), and getDbQuerySummary() implementations can override
+    // the parsed values from above
+    DbClientAttributesExtractor.onStartCommon(attributes, getter, request, captureQueryParameters);
+    serverAttributesExtractor.onStart(attributes, parentContext, request);
+  }
+
+  // String.join is not available on android
+  private static String join(String delimiter, Collection<String> collection) {
+    StringBuilder builder = new StringBuilder();
+    for (String string : collection) {
+      if (builder.length() != 0) {
+        builder.append(delimiter);
+      }
+      builder.append(string);
+    }
+    return builder.toString();
+  }
+
+  @Override
+  public void onEnd(
+      AttributesBuilder attributes,
+      Context context,
+      REQUEST request,
+      @Nullable RESPONSE response,
+      @Nullable Throwable error) {
+    internalNetworkExtractor.onEnd(attributes, request, response);
+    DbClientAttributesExtractor.onEndCommon(attributes, getter, request, response, error);
+  }
+
+  /**
+   * This method is internal and is hence not for public use. Its API is unstable and can change at
+   * any time.
+   */
+  @Override
+  public SpanKey internalGetSpanKey() {
+    return SpanKey.DB_CLIENT;
+  }
+}

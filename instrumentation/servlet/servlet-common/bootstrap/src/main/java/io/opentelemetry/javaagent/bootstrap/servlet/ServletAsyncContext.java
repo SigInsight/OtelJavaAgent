@@ -1,0 +1,95 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.bootstrap.servlet;
+
+import static io.opentelemetry.context.ContextKey.named;
+
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.ContextKey;
+import io.opentelemetry.context.ImplicitContextKeyed;
+import javax.annotation.Nullable;
+
+public final class ServletAsyncContext implements ImplicitContextKeyed {
+  private static final ContextKey<ServletAsyncContext> CONTEXT_KEY =
+      named("opentelemetry-servlet-async-context");
+
+  private boolean isAsyncListenerAttached;
+  @Nullable private Throwable throwable;
+  @Nullable private Object response;
+  @Nullable private Context context;
+
+  public static Context init(Context context) {
+    if (context.get(CONTEXT_KEY) != null) {
+      return context;
+    }
+    return context.with(new ServletAsyncContext());
+  }
+
+  @Nullable
+  public static ServletAsyncContext get(@Nullable Context context) {
+    return context != null ? context.get(CONTEXT_KEY) : null;
+  }
+
+  public static boolean isAsyncListenerAttached(@Nullable Context context) {
+    ServletAsyncContext servletAsyncContext = get(context);
+    return servletAsyncContext != null && servletAsyncContext.isAsyncListenerAttached;
+  }
+
+  public static void setAsyncListenerAttached(@Nullable Context context, boolean value) {
+    ServletAsyncContext servletAsyncContext = get(context);
+    if (servletAsyncContext != null) {
+      servletAsyncContext.isAsyncListenerAttached = value;
+    }
+  }
+
+  @Nullable
+  public static Throwable getAsyncException(Context context, @Nullable Throwable error) {
+    Throwable result = null;
+    ServletAsyncContext servletAsyncContext = get(context);
+    if (servletAsyncContext != null) {
+      result = servletAsyncContext.throwable;
+      // clear the stored exception after reading it
+      // https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/16129
+      servletAsyncContext.throwable = null;
+    }
+    return error != null ? error : result;
+  }
+
+  public static void recordAsyncException(Context context, Throwable throwable) {
+    ServletAsyncContext servletAsyncContext = get(context);
+    if (servletAsyncContext != null) {
+      servletAsyncContext.throwable = throwable;
+    }
+  }
+
+  @Nullable
+  public static Object getAsyncListenerResponse(@Nullable Context context) {
+    ServletAsyncContext servletAsyncContext = get(context);
+    return servletAsyncContext != null ? servletAsyncContext.response : null;
+  }
+
+  public static void setAsyncListenerResponse(Context context, Object response) {
+    ServletAsyncContext servletAsyncContext = get(context);
+    if (servletAsyncContext != null) {
+      servletAsyncContext.response = response;
+      servletAsyncContext.context = context;
+    }
+  }
+
+  @Nullable
+  public static Context getAsyncListenerContext(Context context) {
+    ServletAsyncContext servletAsyncContext = get(context);
+    if (servletAsyncContext != null) {
+      return servletAsyncContext.context;
+    }
+    return null;
+  }
+
+  @Override
+  public Context storeInContext(Context context) {
+    return context.with(CONTEXT_KEY, this);
+  }
+}

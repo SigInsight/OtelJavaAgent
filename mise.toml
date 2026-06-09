@@ -1,0 +1,17 @@
+[tools]
+
+# Linters
+"aqua:grafana/flint" = "0.22.5"
+lychee = "0.24.2"
+rumdl = "0.2.10"
+
+[env]
+FLINT_CONFIG_DIR = ".github/config"
+
+[tasks.lint]
+description = "Run all lints"
+run = "flint run"
+
+[tasks."lint:fix"]
+description = "Auto-fix lint issues"
+run = "flint run --fix"

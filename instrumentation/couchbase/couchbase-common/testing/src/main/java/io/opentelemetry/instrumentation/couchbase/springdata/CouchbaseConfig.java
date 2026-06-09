@@ -1,0 +1,52 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.instrumentation.couchbase.springdata;
+
+import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
+
+import com.couchbase.client.java.cluster.BucketSettings;
+import com.couchbase.client.java.env.CouchbaseEnvironment;
+import java.util.List;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.couchbase.config.AbstractCouchbaseConfiguration;
+import org.springframework.data.couchbase.repository.config.EnableCouchbaseRepositories;
+
+@Configuration
+@EnableCouchbaseRepositories(basePackages = "io.opentelemetry.instrumentation.couchbase.springdata")
+@ComponentScan(basePackages = "io.opentelemetry.instrumentation.couchbase.springdata")
+class CouchbaseConfig extends AbstractCouchbaseConfiguration {
+
+  // These need to be set before this class can be used by Spring
+  private static CouchbaseEnvironment environment;
+  private static BucketSettings bucketSettings;
+
+  static void configure(CouchbaseEnvironment environment, BucketSettings bucketSettings) {
+    CouchbaseConfig.environment = environment;
+    CouchbaseConfig.bucketSettings = bucketSettings;
+  }
+
+  @Override
+  protected CouchbaseEnvironment getEnvironment() {
+    return requireNonNull(environment);
+  }
+
+  @Override
+  protected List<String> getBootstrapHosts() {
+    return singletonList("127.0.0.1");
+  }
+
+  @Override
+  protected String getBucketName() {
+    return requireNonNull(bucketSettings).name();
+  }
+
+  @Override
+  protected String getBucketPassword() {
+    return requireNonNull(bucketSettings).password();
+  }
+}

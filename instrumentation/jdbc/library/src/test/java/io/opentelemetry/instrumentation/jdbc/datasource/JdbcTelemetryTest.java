@@ -1,0 +1,279 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.instrumentation.jdbc.datasource;
+
+import static io.opentelemetry.instrumentation.api.internal.SemconvStability.emitStableDatabaseSemconv;
+import static io.opentelemetry.instrumentation.testing.junit.db.DbClientMetricsTestUtil.assertDurationMetric;
+import static io.opentelemetry.instrumentation.testing.junit.db.SemconvStabilityUtil.maybeStable;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.equalTo;
+import static io.opentelemetry.semconv.DbAttributes.DB_NAMESPACE;
+import static io.opentelemetry.semconv.DbAttributes.DB_OPERATION_BATCH_SIZE;
+import static io.opentelemetry.semconv.DbAttributes.DB_QUERY_TEXT;
+import static io.opentelemetry.semconv.DbAttributes.DB_SYSTEM_NAME;
+import static io.opentelemetry.semconv.DbAttributes.DbSystemNameValues.POSTGRESQL;
+import static io.opentelemetry.semconv.ErrorAttributes.ERROR_TYPE;
+import static io.opentelemetry.semconv.ServerAttributes.SERVER_ADDRESS;
+import static io.opentelemetry.semconv.ServerAttributes.SERVER_PORT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_CONNECTION_STRING;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_NAME;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_QUERY_SUMMARY;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
+import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
+import io.opentelemetry.instrumentation.jdbc.internal.OpenTelemetryConnection;
+import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
+import io.opentelemetry.instrumentation.testing.junit.LibraryInstrumentationExtension;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.mockito.Mockito;
+
+@SuppressWarnings("deprecation") // using deprecated semconv
+class JdbcTelemetryTest {
+
+  @RegisterExtension
+  static final InstrumentationExtension testing = LibraryInstrumentationExtension.create();
+
+  @Test
+  void buildWithDefaults() throws SQLException {
+    JdbcTelemetry telemetry = JdbcTelemetry.builder(testing.getOpenTelemetry()).build();
+    DataSource dataSource = telemetry.wrap(new TestDataSource());
+
+    testing.runWithSpan(
+        "parent", () -> dataSource.getConnection().createStatement().execute("SELECT 1;"));
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent"),
+                span ->
+                    span.hasName(emitStableDatabaseSemconv() ? "SELECT" : "SELECT dbname")
+                        .hasAttribute(equalTo(maybeStable(DB_STATEMENT), "SELECT ?;"))));
+
+    assertDurationMetric(
+        testing,
+        "io.opentelemetry.jdbc",
+        DB_NAMESPACE,
+        DB_QUERY_SUMMARY,
+        DB_SYSTEM_NAME,
+        SERVER_ADDRESS,
+        SERVER_PORT);
+  }
+
+  @Test
+  void error() throws SQLException {
+    assumeTrue(emitStableDatabaseSemconv());
+
+    JdbcTelemetry telemetry = JdbcTelemetry.builder(testing.getOpenTelemetry()).build();
+    DataSource source = spy(new TestDataSource());
+    Connection connection = spy(source.getConnection());
+    Statement statement = spy(connection.createStatement());
+    when(source.getConnection()).thenReturn(connection);
+    when(connection.createStatement()).thenReturn(statement);
+    doThrow(new SQLException("BOOM", "state", 42)).when(statement).execute(Mockito.anyString());
+    DataSource dataSource = telemetry.wrap(source);
+
+    assertThatCode(
+            () ->
+                testing.runWithSpan(
+                    "parent",
+                    () -> dataSource.getConnection().createStatement().execute("SELECT 1;")))
+        .isInstanceOf(SQLException.class);
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent"),
+                span ->
+                    span.hasName(emitStableDatabaseSemconv() ? "SELECT" : "SELECT dbname")
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(DB_SYSTEM_NAME, POSTGRESQL),
+                            equalTo(DB_NAMESPACE, "dbname"),
+                            equalTo(DB_QUERY_TEXT, "SELECT ?;"),
+                            equalTo(
+                                DB_QUERY_SUMMARY, emitStableDatabaseSemconv() ? "SELECT" : null),
+                            equalTo(SERVER_ADDRESS, "127.0.0.1"),
+                            equalTo(SERVER_PORT, 5432),
+                            equalTo(ERROR_TYPE, "42"))));
+
+    assertDurationMetric(
+        testing,
+        "io.opentelemetry.jdbc",
+        DB_NAMESPACE,
+        DB_QUERY_SUMMARY,
+        DB_SYSTEM_NAME,
+        ERROR_TYPE,
+        SERVER_ADDRESS,
+        SERVER_PORT);
+  }
+
+  @Test
+  void buildWithAllInstrumentersDisabled() throws SQLException {
+    JdbcTelemetry telemetry =
+        JdbcTelemetry.builder(testing.getOpenTelemetry())
+            .setDataSourceInstrumenterEnabled(false)
+            .setStatementInstrumenterEnabled(false)
+            .setTransactionInstrumenterEnabled(false)
+            .build();
+
+    DataSource dataSource = telemetry.wrap(new TestDataSource());
+
+    testing.runWithSpan(
+        "parent", () -> dataSource.getConnection().createStatement().execute("SELECT 1;"));
+
+    testing.waitAndAssertTraces(
+        trace -> trace.hasSpansSatisfyingExactly(span -> span.hasName("parent")));
+  }
+
+  @Test
+  void buildWithDataSourceInstrumenterDisabled() throws SQLException {
+    JdbcTelemetry telemetry =
+        JdbcTelemetry.builder(testing.getOpenTelemetry())
+            .setDataSourceInstrumenterEnabled(false)
+            .build();
+
+    DataSource dataSource = telemetry.wrap(new TestDataSource());
+
+    testing.runWithSpan(
+        "parent", () -> dataSource.getConnection().createStatement().execute("SELECT 1;"));
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent"),
+                span -> span.hasName(emitStableDatabaseSemconv() ? "SELECT" : "SELECT dbname")));
+  }
+
+  @Test
+  void buildWithStatementInstrumenterDisabled() throws SQLException {
+    JdbcTelemetry telemetry =
+        JdbcTelemetry.builder(testing.getOpenTelemetry())
+            .setDataSourceInstrumenterEnabled(true)
+            .setStatementInstrumenterEnabled(false)
+            .build();
+
+    DataSource dataSource = telemetry.wrap(new TestDataSource());
+
+    testing.runWithSpan(
+        "parent", () -> dataSource.getConnection().createStatement().execute("SELECT 1;"));
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent"),
+                span -> span.hasName("TestDataSource.getConnection")));
+  }
+
+  @Test
+  void buildWithTransactionInstrumenterEnabled() throws SQLException {
+    JdbcTelemetry telemetry =
+        JdbcTelemetry.builder(testing.getOpenTelemetry())
+            .setTransactionInstrumenterEnabled(true)
+            .build();
+
+    DataSource dataSource = telemetry.wrap(new TestDataSource());
+
+    testing.runWithSpan(
+        "parent",
+        () -> {
+          Connection connection = dataSource.getConnection();
+          connection.commit();
+          connection.rollback();
+        });
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent"),
+                span -> span.hasName("COMMIT"),
+                span -> span.hasName("ROLLBACK")));
+  }
+
+  @Test
+  void buildWithSanitizationDisabled() throws SQLException {
+    JdbcTelemetry telemetry =
+        JdbcTelemetry.builder(testing.getOpenTelemetry())
+            .setQuerySanitizationEnabled(false)
+            .build();
+
+    DataSource dataSource = telemetry.wrap(new TestDataSource());
+
+    testing.runWithSpan(
+        "parent", () -> dataSource.getConnection().createStatement().execute("SELECT 1;"));
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent"),
+                span ->
+                    span.hasName(emitStableDatabaseSemconv() ? "SELECT" : "SELECT dbname")
+                        .hasAttribute(equalTo(maybeStable(DB_STATEMENT), "SELECT 1;"))));
+  }
+
+  @Test
+  void statementReturnsWrappedConnection() throws SQLException {
+    JdbcTelemetry telemetry = JdbcTelemetry.builder(testing.getOpenTelemetry()).build();
+    DataSource dataSource = telemetry.wrap(new TestDataSource());
+    Connection connection = dataSource.getConnection();
+    Statement statement = connection.createStatement();
+    assertThat(statement.getConnection()).isInstanceOf(OpenTelemetryConnection.class);
+    PreparedStatement preparedStatement = connection.prepareStatement("SELECT 1");
+    assertThat(preparedStatement.getConnection()).isInstanceOf(OpenTelemetryConnection.class);
+    CallableStatement callableStatement = connection.prepareCall("SELECT 1");
+    assertThat(callableStatement.getConnection()).isInstanceOf(OpenTelemetryConnection.class);
+  }
+
+  @Test
+  void batchStatement() throws SQLException {
+    JdbcTelemetry telemetry = JdbcTelemetry.builder(testing.getOpenTelemetry()).build();
+    DataSource dataSource = telemetry.wrap(new TestDataSource());
+
+    testing.runWithSpan(
+        "parent",
+        () -> {
+          Statement statement = dataSource.getConnection().createStatement();
+          statement.addBatch("INSERT INTO invalid VALUES(1)");
+          statement.clearBatch();
+          statement.addBatch("INSERT INTO test VALUES(1)");
+          statement.addBatch("INSERT INTO test VALUES(2)");
+          statement.executeBatch();
+        });
+
+    testing.waitAndAssertTraces(
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span -> span.hasName("parent"),
+                span ->
+                    span.hasName(emitStableDatabaseSemconv() ? "BATCH INSERT test" : "dbname")
+                        .hasAttributesSatisfyingExactly(
+                            equalTo(maybeStable(DB_SYSTEM), POSTGRESQL),
+                            equalTo(maybeStable(DB_NAME), "dbname"),
+                            equalTo(
+                                DB_CONNECTION_STRING,
+                                emitStableDatabaseSemconv() ? null : "postgresql://127.0.0.1:5432"),
+                            equalTo(
+                                maybeStable(DB_STATEMENT),
+                                emitStableDatabaseSemconv() ? "INSERT INTO test VALUES(?)" : null),
+                            equalTo(
+                                DB_OPERATION_BATCH_SIZE, emitStableDatabaseSemconv() ? 2L : null),
+                            equalTo(
+                                DB_QUERY_SUMMARY,
+                                emitStableDatabaseSemconv() ? "BATCH INSERT test" : null),
+                            equalTo(SERVER_ADDRESS, "127.0.0.1"),
+                            equalTo(SERVER_PORT, 5432))));
+  }
+}

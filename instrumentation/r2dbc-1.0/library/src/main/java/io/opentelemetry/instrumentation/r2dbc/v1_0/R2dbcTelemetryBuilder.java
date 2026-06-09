@@ -1,0 +1,74 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.instrumentation.r2dbc.v1_0;
+
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.instrumentation.api.incubator.semconv.db.internal.SqlCommenter;
+import io.opentelemetry.instrumentation.api.incubator.semconv.db.internal.SqlCommenterBuilder;
+import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor;
+import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor;
+import io.opentelemetry.instrumentation.r2dbc.v1_0.internal.DbExecution;
+import io.opentelemetry.instrumentation.r2dbc.v1_0.internal.Experimental;
+import io.opentelemetry.instrumentation.r2dbc.v1_0.internal.R2dbcInstrumenterBuilder;
+import java.util.function.UnaryOperator;
+
+/** A builder of {@link R2dbcTelemetry}. */
+public final class R2dbcTelemetryBuilder {
+
+  private final R2dbcInstrumenterBuilder instrumenterBuilder;
+  private boolean querySanitizationEnabled = true;
+  private UnaryOperator<SpanNameExtractor<DbExecution>> spanNameExtractorCustomizer =
+      UnaryOperator.identity();
+  private final SqlCommenterBuilder sqlCommenterBuilder = SqlCommenter.builder();
+
+  static {
+    Experimental.internalSetSqlCommenterBuilder(builder -> builder.sqlCommenterBuilder);
+  }
+
+  R2dbcTelemetryBuilder(OpenTelemetry openTelemetry) {
+    instrumenterBuilder = new R2dbcInstrumenterBuilder(openTelemetry);
+  }
+
+  @CanIgnoreReturnValue
+  public R2dbcTelemetryBuilder addAttributesExtractor(
+      AttributesExtractor<DbExecution, Void> attributesExtractor) {
+    instrumenterBuilder.addAttributesExtractor(attributesExtractor);
+    return this;
+  }
+
+  /**
+   * Sets whether the {@code db.statement}/{@code db.query.text} attribute on the spans emitted by
+   * the constructed {@link R2dbcTelemetry} should be sanitized. If set to {@code true}, all
+   * parameters that can potentially contain sensitive information will be masked. Enabled by
+   * default.
+   */
+  @CanIgnoreReturnValue
+  public R2dbcTelemetryBuilder setQuerySanitizationEnabled(boolean enabled) {
+    this.querySanitizationEnabled = enabled;
+    return this;
+  }
+
+  /**
+   * Sets a customizer that receives the default {@link SpanNameExtractor} and returns a customized
+   * one.
+   */
+  @CanIgnoreReturnValue
+  public R2dbcTelemetryBuilder setSpanNameExtractorCustomizer(
+      UnaryOperator<SpanNameExtractor<DbExecution>> spanNameExtractorCustomizer) {
+    this.spanNameExtractorCustomizer = spanNameExtractorCustomizer;
+    return this;
+  }
+
+  /**
+   * Returns a new {@link R2dbcTelemetry} with the settings of this {@link R2dbcTelemetryBuilder}.
+   */
+  public R2dbcTelemetry build() {
+    return new R2dbcTelemetry(
+        instrumenterBuilder.build(spanNameExtractorCustomizer, querySanitizationEnabled),
+        sqlCommenterBuilder.build());
+  }
+}

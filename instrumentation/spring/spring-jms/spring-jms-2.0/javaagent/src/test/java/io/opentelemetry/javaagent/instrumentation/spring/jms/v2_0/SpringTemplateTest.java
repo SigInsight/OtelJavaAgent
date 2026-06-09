@@ -1,0 +1,259 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.spring.jms.v2_0;
+
+import static io.opentelemetry.instrumentation.testing.util.TelemetryDataUtil.orderByRootSpanName;
+import static java.util.Collections.singleton;
+import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.opentelemetry.instrumentation.spring.jms.v2_0.AbstractJmsTest;
+import io.opentelemetry.instrumentation.testing.internal.AutoCleanupExtension;
+import io.opentelemetry.instrumentation.testing.junit.AgentInstrumentationExtension;
+import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
+import io.opentelemetry.sdk.trace.data.SpanData;
+import java.io.File;
+import java.nio.file.Files;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.jms.Connection;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.Queue;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+import org.hornetq.api.core.TransportConfiguration;
+import org.hornetq.api.core.client.ClientSession;
+import org.hornetq.api.core.client.ClientSessionFactory;
+import org.hornetq.api.core.client.HornetQClient;
+import org.hornetq.api.core.client.ServerLocator;
+import org.hornetq.api.jms.HornetQJMSClient;
+import org.hornetq.api.jms.JMSFactoryType;
+import org.hornetq.core.config.Configuration;
+import org.hornetq.core.config.CoreQueueConfiguration;
+import org.hornetq.core.config.impl.ConfigurationImpl;
+import org.hornetq.core.remoting.impl.invm.InVMAcceptorFactory;
+import org.hornetq.core.remoting.impl.invm.InVMConnectorFactory;
+import org.hornetq.core.server.HornetQServer;
+import org.hornetq.core.server.HornetQServers;
+import org.hornetq.jms.client.HornetQConnectionFactory;
+import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.springframework.jms.core.JmsTemplate;
+import org.springframework.jms.core.MessagePostProcessor;
+
+class SpringTemplateTest extends AbstractJmsTest {
+
+  @RegisterExtension
+  private static final InstrumentationExtension testing = AgentInstrumentationExtension.create();
+
+  @RegisterExtension
+  private static final AutoCleanupExtension cleanup = AutoCleanupExtension.create();
+
+  private static final String MESSAGE_TEXT = "a message";
+
+  private static HornetQServer server;
+  private static JmsTemplate template;
+  private static Session session;
+  private static Connection connection;
+
+  @BeforeAll
+  static void setup() throws Exception {
+    File tempDir = Files.createTempDirectory("tmp").toFile();
+    tempDir.deleteOnExit();
+
+    Configuration config = new ConfigurationImpl();
+    config.setBindingsDirectory(tempDir.getPath());
+    config.setJournalDirectory(tempDir.getPath());
+    config.setCreateBindingsDir(false);
+    config.setCreateJournalDir(false);
+    config.setSecurityEnabled(false);
+    config.setPersistenceEnabled(false);
+    config.setQueueConfigurations(
+        singletonList(new CoreQueueConfiguration("someQueue", "someQueue", null, true)));
+    config.setAcceptorConfigurations(
+        singleton(new TransportConfiguration(InVMAcceptorFactory.class.getName())));
+
+    server = HornetQServers.newHornetQServer(config);
+    server.start();
+    cleanup.deferAfterAll(server::stop);
+
+    ServerLocator serverLocator =
+        HornetQClient.createServerLocatorWithoutHA(
+            new TransportConfiguration(InVMConnectorFactory.class.getName()));
+    ClientSessionFactory sf = serverLocator.createSessionFactory();
+    ClientSession clientSession = sf.createSession(false, false, false);
+    clientSession.createQueue("jms.queue.SpringTemplateJms2", "jms.queue.SpringTemplateJms2", true);
+    clientSession.close();
+    sf.close();
+    serverLocator.close();
+
+    HornetQConnectionFactory connectionFactory =
+        HornetQJMSClient.createConnectionFactoryWithoutHA(
+            JMSFactoryType.CF, new TransportConfiguration(InVMConnectorFactory.class.getName()));
+    cleanup.deferAfterAll(connectionFactory::close);
+
+    connection = connectionFactory.createConnection();
+    connection.start();
+    session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    session.run();
+    cleanup.deferAfterAll(connection);
+    cleanup.deferAfterAll(session);
+
+    template = new JmsTemplate(connectionFactory);
+    template.setReceiveTimeout(SECONDS.toMillis(10));
+  }
+
+  @Test
+  void sendingMessageToDestinationNameGeneratesSpans() throws JMSException {
+    Queue queue = session.createQueue("SpringTemplateJms2");
+    template.convertAndSend(queue, MESSAGE_TEXT);
+    TextMessage receivedMessage = (TextMessage) template.receive(queue);
+
+    assertThat(receivedMessage).isNotNull();
+    assertThat(receivedMessage.getText()).isEqualTo(MESSAGE_TEXT);
+
+    String receivedMsgId = receivedMessage.getJMSMessageID();
+    AtomicReference<SpanData> producerSpan = new AtomicReference<>();
+    testing.waitAndAssertTraces(
+        trace -> {
+          trace.hasSpansSatisfyingExactly(
+              span -> assertProducerSpan(span, "SpringTemplateJms2", false));
+          producerSpan.set(trace.getSpan(0));
+        },
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    assertConsumerSpan(
+                        span,
+                        producerSpan.get(),
+                        null,
+                        "SpringTemplateJms2",
+                        "receive",
+                        false,
+                        receivedMsgId)));
+  }
+
+  @Test
+  void sendAndReceiveMessageGeneratesSpans() throws JMSException {
+    AtomicReference<String> msgId = new AtomicReference<>();
+    Queue queue = session.createQueue("SpringTemplateJms2");
+    Runnable msgSend =
+        () -> {
+          TextMessage msg = (TextMessage) template.receive(queue);
+          assertThat(msg).isNotNull();
+          try {
+            assertThat(msg.getText()).isEqualTo(MESSAGE_TEXT);
+            msgId.set(msg.getJMSMessageID());
+            // There's a chance this might be reported last, messing up the assertion.
+            template.send(
+                msg.getJMSReplyTo(),
+                (session) ->
+                    requireNonNull(template.getMessageConverter())
+                        .toMessage("responded!", session));
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        };
+    Thread msgSendThread = new Thread(msgSend);
+    msgSendThread.start();
+    TextMessage receivedMessage =
+        (TextMessage)
+            template.sendAndReceive(
+                queue,
+                session ->
+                    requireNonNull(template.getMessageConverter())
+                        .toMessage(MESSAGE_TEXT, session));
+
+    assertThat(receivedMessage).isNotNull();
+    assertThat(receivedMessage.getText()).isEqualTo("responded!");
+
+    String receivedMsgId = receivedMessage.getJMSMessageID();
+    AtomicReference<SpanData> producerSpan = new AtomicReference<>();
+    AtomicReference<SpanData> tmpProducerSpan = new AtomicReference<>();
+    testing.waitAndAssertSortedTraces(
+        orderByRootSpanName(
+            "SpringTemplateJms2 publish",
+            "SpringTemplateJms2 receive",
+            "(temporary) publish",
+            "(temporary) receive"),
+        trace -> {
+          trace.hasSpansSatisfyingExactly(
+              span -> assertProducerSpan(span, "SpringTemplateJms2", false));
+          producerSpan.set(trace.getSpan(0));
+        },
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    assertConsumerSpan(
+                        span,
+                        producerSpan.get(),
+                        null,
+                        "SpringTemplateJms2",
+                        "receive",
+                        false,
+                        msgId.get())),
+        trace -> {
+          trace.hasSpansSatisfyingExactly(span -> assertProducerSpan(span, "(temporary)", false));
+          tmpProducerSpan.set(trace.getSpan(0));
+        },
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    assertConsumerSpan(
+                        span,
+                        tmpProducerSpan.get(),
+                        null,
+                        "(temporary)",
+                        "receive",
+                        false,
+                        receivedMsgId)));
+  }
+
+  @Test
+  void captureMessageHeaderAsSpanAttribute() throws JMSException {
+    Queue queue = session.createQueue("SpringTemplateJms2");
+    template.convertAndSend(
+        queue,
+        MESSAGE_TEXT,
+        new MessagePostProcessor() {
+          @Override
+          public @NotNull Message postProcessMessage(@NotNull Message message) throws JMSException {
+            message.setStringProperty("Test_Message_Header", "test");
+            message.setStringProperty("Uncaptured_Header", "password");
+            message.setIntProperty("Test_Message_Int_Header", 1234);
+            return message;
+          }
+        });
+    TextMessage receivedMessage = (TextMessage) template.receive(queue);
+
+    assertThat(receivedMessage).isNotNull();
+    assertThat(receivedMessage.getText()).isEqualTo(MESSAGE_TEXT);
+
+    String receivedMsgId = receivedMessage.getJMSMessageID();
+    AtomicReference<SpanData> producerSpan = new AtomicReference<>();
+    testing.waitAndAssertTraces(
+        trace -> {
+          trace.hasSpansSatisfyingExactly(
+              span -> assertProducerSpan(span, "SpringTemplateJms2", true));
+          producerSpan.set(trace.getSpan(0));
+        },
+        trace ->
+            trace.hasSpansSatisfyingExactly(
+                span ->
+                    assertConsumerSpan(
+                        span,
+                        producerSpan.get(),
+                        null,
+                        "SpringTemplateJms2",
+                        "receive",
+                        true,
+                        receivedMsgId)));
+  }
+}

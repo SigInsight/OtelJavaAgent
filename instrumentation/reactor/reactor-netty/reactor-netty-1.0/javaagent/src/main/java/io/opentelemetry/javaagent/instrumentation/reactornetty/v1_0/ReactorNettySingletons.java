@@ -1,0 +1,72 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0;
+
+import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.HttpResponse;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.instrumentation.api.incubator.builder.internal.DefaultHttpClientInstrumenterBuilder;
+import io.opentelemetry.instrumentation.api.incubator.config.internal.DeclarativeConfigUtil;
+import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
+import io.opentelemetry.instrumentation.api.util.VirtualField;
+import io.opentelemetry.instrumentation.netty.common.v4_0.internal.NettyCommonRequest;
+import io.opentelemetry.instrumentation.netty.common.v4_0.internal.client.NettyClientInstrumenterBuilderFactory;
+import io.opentelemetry.instrumentation.netty.common.v4_0.internal.client.NettyClientInstrumenterFactory;
+import io.opentelemetry.instrumentation.netty.common.v4_0.internal.client.NettyConnectionInstrumentationFlag;
+import io.opentelemetry.instrumentation.netty.common.v4_0.internal.client.NettyConnectionInstrumenter;
+import io.opentelemetry.javaagent.bootstrap.internal.AgentCommonConfig;
+import io.opentelemetry.javaagent.bootstrap.internal.JavaagentHttpClientInstrumenters;
+import reactor.netty.http.client.HttpClientRequest;
+import reactor.netty.http.client.HttpClientResponse;
+
+public class ReactorNettySingletons {
+
+  private static final String INSTRUMENTATION_NAME = "io.opentelemetry.reactor-netty-1.0";
+
+  private static final boolean connectionTelemetryEnabled =
+      DeclarativeConfigUtil.getInstrumentationConfig(GlobalOpenTelemetry.get(), "reactor_netty")
+          .get("connection_telemetry")
+          .getBoolean("enabled", false);
+
+  private static final Instrumenter<HttpClientRequest, HttpClientResponse> instrumenter;
+  private static final NettyConnectionInstrumenter connectionInstrumenter;
+
+  public static final VirtualField<ChannelPromise, ConnectionRequestAndContext>
+      CONNECTION_REQUEST_AND_CONTEXT =
+          VirtualField.find(ChannelPromise.class, ConnectionRequestAndContext.class);
+
+  static {
+    instrumenter =
+        JavaagentHttpClientInstrumenters.create(
+            INSTRUMENTATION_NAME,
+            new ReactorNettyHttpClientAttributesGetter(),
+            new HttpClientRequestHeadersSetter());
+
+    DefaultHttpClientInstrumenterBuilder<NettyCommonRequest, HttpResponse> builder =
+        NettyClientInstrumenterBuilderFactory.create(
+                INSTRUMENTATION_NAME, GlobalOpenTelemetry.get())
+            .configure(AgentCommonConfig.get());
+    NettyClientInstrumenterFactory instrumenterFactory =
+        new NettyClientInstrumenterFactory(
+            builder,
+            connectionTelemetryEnabled
+                ? NettyConnectionInstrumentationFlag.ENABLED
+                : NettyConnectionInstrumentationFlag.DISABLED,
+            NettyConnectionInstrumentationFlag.DISABLED);
+    connectionInstrumenter =
+        instrumenterFactory.createConnectionInstrumenter(GlobalOpenTelemetry.get());
+  }
+
+  public static Instrumenter<HttpClientRequest, HttpClientResponse> instrumenter() {
+    return instrumenter;
+  }
+
+  public static NettyConnectionInstrumenter connectionInstrumenter() {
+    return connectionInstrumenter;
+  }
+
+  private ReactorNettySingletons() {}
+}

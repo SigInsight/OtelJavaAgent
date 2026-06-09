@@ -1,0 +1,82 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package io.opentelemetry.javaagent.instrumentation.hibernate.v4_0;
+
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.implementsInterface;
+import static io.opentelemetry.javaagent.instrumentation.hibernate.v4_0.Hibernate4Singletons.CRITERIA_SESSION_INFO;
+import static io.opentelemetry.javaagent.instrumentation.hibernate.v4_0.Hibernate4Singletons.instrumenter;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
+
+import io.opentelemetry.context.Context;
+import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
+import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
+import io.opentelemetry.javaagent.instrumentation.hibernate.common.v3_3.HibernateOperation;
+import io.opentelemetry.javaagent.instrumentation.hibernate.common.v3_3.HibernateOperationScope;
+import io.opentelemetry.javaagent.instrumentation.hibernate.common.v3_3.SessionInfo;
+import javax.annotation.Nullable;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.hibernate.Criteria;
+import org.hibernate.internal.CriteriaImpl;
+
+class CriteriaInstrumentation implements TypeInstrumentation {
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderOptimization() {
+    return hasClassesNamed("org.hibernate.Criteria");
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return implementsInterface(named("org.hibernate.Criteria"));
+  }
+
+  @Override
+  public void transform(TypeTransformer transformer) {
+    transformer.applyAdviceToMethod(
+        namedOneOf("list", "uniqueResult", "scroll"),
+        getClass().getName() + "$CriteriaMethodAdvice");
+  }
+
+  @SuppressWarnings("unused")
+  public static class CriteriaMethodAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    @Nullable
+    public static HibernateOperationScope startMethod(
+        @Advice.This Criteria criteria, @Advice.Origin("#m") String name) {
+
+      if (HibernateOperationScope.enterDepthSkipCheck()) {
+        return null;
+      }
+
+      String entityName = null;
+      if (criteria instanceof CriteriaImpl) {
+        entityName = ((CriteriaImpl) criteria).getEntityOrClassName();
+      }
+
+      SessionInfo sessionInfo = CRITERIA_SESSION_INFO.get(criteria);
+
+      Context parentContext = Java8BytecodeBridge.currentContext();
+      HibernateOperation hibernateOperation =
+          new HibernateOperation("Criteria." + name, entityName, sessionInfo);
+
+      return HibernateOperationScope.start(hibernateOperation, parentContext, instrumenter());
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class, inline = false)
+    public static void endMethod(
+        @Advice.Thrown @Nullable Throwable throwable,
+        @Advice.Enter @Nullable HibernateOperationScope scope) {
+
+      HibernateOperationScope.end(scope, throwable);
+    }
+  }
+}
