@@ -65,10 +65,10 @@ class InstrumentationNameComparatorTest {
   @Test
   void testComparesPatchVersions() {
     // Test that 3.1 comes before 3.1.6, which comes before 3.2
-    InstrumentationModule module31 = new InstrumentationModule.Builder("couchbase-3.1").build();
-    InstrumentationModule module316 = new InstrumentationModule.Builder("couchbase-3.1.6").build();
-    InstrumentationModule module32 = new InstrumentationModule.Builder("couchbase-3.2").build();
-    InstrumentationModule module34 = new InstrumentationModule.Builder("couchbase-3.4").build();
+    InstrumentationModule module31 = new InstrumentationModule.Builder("lib-3.1").build();
+    InstrumentationModule module316 = new InstrumentationModule.Builder("lib-3.1.6").build();
+    InstrumentationModule module32 = new InstrumentationModule.Builder("lib-3.2").build();
+    InstrumentationModule module34 = new InstrumentationModule.Builder("lib-3.4").build();
 
     List<String> modules =
         Stream.of(module34, module316, module32, module31)
@@ -77,7 +77,7 @@ class InstrumentationNameComparatorTest {
             .toList();
 
     assertThat(modules)
-        .containsExactly("couchbase-3.1", "couchbase-3.1.6", "couchbase-3.2", "couchbase-3.4");
+        .containsExactly("lib-3.1", "lib-3.1.6", "lib-3.2", "lib-3.4");
   }
 
   @Test

@@ -347,9 +347,8 @@ tasks.withType<Test>().configureEach {
   jvmArgs("-Dotel.java.disabled.resource.providers=$resourceClassesCsv")
 
   val trustStore = project(":testing-common").file("src/misc/testing-keystore.p12")
-  // Work around payara not working when this is set for some reason.
   // Don't set for vaadin as tests need to be able to download nodejs when not cached in ~/.vaadin/
-  if (project.name != "jaxrs-2.0-payara-testing" && !project.path.contains("vaadin")) {
+  if (!project.path.contains("vaadin")) {
     jvmArgumentProviders.add(KeystoreArgumentsProvider(trustStore))
   }
 

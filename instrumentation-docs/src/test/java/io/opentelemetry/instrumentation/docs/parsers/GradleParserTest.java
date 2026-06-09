@@ -19,8 +19,8 @@ class GradleParserTest {
         """
             muzzle {
               pass {
-                group.set("org.elasticsearch.client")
-                module.set("rest")
+                group.set("org.apache.httpcomponents")
+                module.set("httpclient")
                 versions.set("[5.0,6.4)")
               }
             }""";
@@ -28,7 +28,7 @@ class GradleParserTest {
         GradleParser.parseGradleFile(gradleBuildFileContent, InstrumentationType.JAVAAGENT);
     assertThat(info.versions().size()).isEqualTo(1);
     assertThat(info.versions().stream().findFirst().get())
-        .isEqualTo("org.elasticsearch.client:rest:[5.0,6.4)");
+        .isEqualTo("org.apache.httpcomponents:httpclient:[5.0,6.4)");
   }
 
   @Test

@@ -108,8 +108,6 @@ public class AdditionalLibraryIgnoredTypesConfigurer implements IgnoredTypesConf
         .allowClass("org.springframework.boot.autoconfigure.BackgroundPreinitializer$")
         .allowClass(
             "org.springframework.boot.autoconfigure.preinitialize.BackgroundPreinitializingApplicationListener$")
-        .allowClass(
-            "org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfiguration$$Lambda")
         .allowClass("org.springframework.boot.autoconfigure.condition.OnClassCondition$")
         .allowClass(
             "org.springframework.boot.autoconfigure.web.ResourceProperties$Cache$Cachecontrol$$Lambda")
@@ -219,14 +217,6 @@ public class AdditionalLibraryIgnoredTypesConfigurer implements IgnoredTypesConf
         .allowClass("ch.qos.logback.classic.Logger")
         .allowClass("ch.qos.logback.classic.spi.LoggingEvent")
         .allowClass("ch.qos.logback.classic.spi.LoggingEventVO");
-
-    builder
-        .ignoreClass("com.couchbase.client.deps.")
-        // Couchbase library includes some packaged dependencies, unfortunately some of them are
-        // instrumented by executors instrumentation
-        .allowClass("com.couchbase.client.deps.io.netty.")
-        .allowClass("com.couchbase.client.deps.org.LatencyUtils.")
-        .allowClass("com.couchbase.client.deps.com.lmax.disruptor.");
 
     builder
         .ignoreClass("com.google.cloud.")

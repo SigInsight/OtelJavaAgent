@@ -31,7 +31,7 @@ public final class TracedOnSubscribe<T, REQUEST> implements Observable.OnSubscri
   @Override
   public void call(Subscriber<? super T> subscriber) {
     /*
-    TODO: can't really call shouldStart() - couchbase async instrumentation nests CLIENT calls
+    TODO: can't really call shouldStart() - async client instrumentation nests CLIENT calls
     which normally should happen in a sequence
     InstrumentationTypes to the rescue?
 

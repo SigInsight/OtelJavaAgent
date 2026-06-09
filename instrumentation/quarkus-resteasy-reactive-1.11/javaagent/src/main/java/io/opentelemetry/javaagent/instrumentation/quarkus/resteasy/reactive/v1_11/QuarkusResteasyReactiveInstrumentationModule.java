@@ -20,7 +20,6 @@ public class QuarkusResteasyReactiveInstrumentationModule extends Instrumentatio
     super(
         "quarkus",
         expandDeprecatedNames(
-            "jaxrs",
             "quarkus-resteasy-reactive",
             "quarkus-resteasy-reactive-1.11|deprecated:quarkus-resteasy-reactive-3.0"));
   }

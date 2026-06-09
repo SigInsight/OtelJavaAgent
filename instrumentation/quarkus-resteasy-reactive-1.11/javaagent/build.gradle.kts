@@ -19,5 +19,4 @@ muzzle {
 
 dependencies {
   compileOnly("io.quarkus:quarkus-resteasy-reactive:1.11.0.Final")
-  implementation(project(":instrumentation:jaxrs:jaxrs-common:javaagent"))
 }

@@ -34,8 +34,8 @@ public class AttributeKeys {
    * Generate an attribute key or reuse the one existing in the global app map. This implementation
    * creates attributes only once even if the current class is loaded by several class loaders and
    * prevents an issue with Apache Atlas project were this class loaded by multiple class loaders,
-   * while the Attribute class is loaded by a third class loader and used internally for the
-   * cassandra driver.
+   * while the Attribute class is loaded by a third class loader and used internally by a client
+   * library.
    *
    * <p>Keep this API public for vendor instrumentations
    */

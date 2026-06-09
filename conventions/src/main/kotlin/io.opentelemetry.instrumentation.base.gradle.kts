@@ -197,7 +197,7 @@ configurations {
       // against the old API while testing against the new one. Forcing the override onto
       // compileClasspath would upgrade the compileOnly `library(...)` version and break
       // compilation (e.g. scala-fork-join-2.8 compiles against scala 2.8 APIs,
-      // vertx-sql-client-4.0 against generic vertx 4.0 APIs, elasticsearch-transport-5.0
+      // vertx-sql-client-4.0 against generic vertx 4.0 APIs, clickhouse-client-v1-0.5
       // against generic ES 5.0 APIs). Overrides must also NOT touch custom JvmTestSuite
       // source sets (e.g. `version20Test*`, `tapirTest*`) which declare
       // their own explicit older versions; using `contains("test")` here would let the

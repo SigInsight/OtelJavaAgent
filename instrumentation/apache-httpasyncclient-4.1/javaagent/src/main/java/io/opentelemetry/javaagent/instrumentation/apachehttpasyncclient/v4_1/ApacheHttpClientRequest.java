@@ -130,7 +130,7 @@ class ApacheHttpClientRequest {
       if (path == null) {
         path = "/";
       } else if (!path.startsWith("/")) {
-        // elasticsearch RestClient sends relative urls
+        // some clients send relative urls
         // TODO(trask) add test for this and extend to Apache 4, 4.3 and 5
         path = "/" + path;
       }

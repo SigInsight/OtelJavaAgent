@@ -5,8 +5,6 @@
 
 package io.opentelemetry.javaagent.instrumentation.quarkus.resteasy.reactive.v1_11;
 
-import static io.opentelemetry.javaagent.instrumentation.jaxrs.common.JaxrsPathUtil.normalizePath;
-
 import io.opentelemetry.context.Context;
 import io.opentelemetry.instrumentation.api.semconv.http.HttpServerRoute;
 import io.opentelemetry.instrumentation.api.semconv.http.HttpServerRouteSource;
@@ -50,6 +48,17 @@ final class ResteasyReactiveSpanName {
     }
 
     return normalizePath(uriTemplate.template);
+  }
+
+  private static String normalizePath(String path) {
+    if (path == null || path.isEmpty() || "/".equals(path)) {
+      return "";
+    }
+    String normalized = path.startsWith("/") ? path : "/" + path;
+    while (normalized.endsWith("/") && normalized.length() > 1) {
+      normalized = normalized.substring(0, normalized.length() - 1);
+    }
+    return normalized;
   }
 
   private ResteasyReactiveSpanName() {}

@@ -48,8 +48,7 @@ class FileManagerTest {
   @Test
   void testExcludesCommonModules() {
     assertThat(
-            FileManager.isValidInstrumentationPath(
-                "instrumentation/elasticsearch/elasticsearch-rest-common-5.0"))
+            FileManager.isValidInstrumentationPath("instrumentation/redisson/redisson-common-3.0"))
         .isFalse();
   }
 
