@@ -107,7 +107,7 @@ public abstract class AbstractJdbcInstrumentationTest {
   private static final Map<String, String> JDBC_URLS =
       ImmutableMap.of(
           "h2", "jdbc:h2:mem:" + DATABASE_NAME,
-          "derby", "jdbc:derby:memory:" + DATABASE_NAME,
+          "derby", "jdbc:derby:memory:" + DATABASE_NAME + ";create=true",
           "hsqldb", "jdbc:hsqldb:mem:" + DATABASE_NAME);
   private static final Map<String, String> JDBC_DRIVER_CLASS_NAMES =
       ImmutableMap.of(

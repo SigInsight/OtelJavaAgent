@@ -21,11 +21,7 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
     DeclarativeConfigProperties config =
         createConfig("otel.instrumentation.jdbc-datasource.enabled", "false");
 
-    assertThat(
-            config
-                .getStructured("java")
-                .getStructured("jdbc_datasource")
-                .getBoolean("enabled"))
+    assertThat(config.getStructured("java").getStructured("jdbc_datasource").getBoolean("enabled"))
         .isNotNull()
         .isFalse();
   }
@@ -203,13 +199,13 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
   @Test
   void testGetLong() {
     assertThat(
-            createConfig("otel.instrumentation.runtime-telemetry.package-emitter.jars-per-second", "30")
+            createConfig(
+                    "otel.instrumentation.runtime-telemetry.package-emitter.jars-per-second", "30")
                 .getStructured("java")
                 .getStructured("runtime_telemetry")
                 .getStructured("package_emitter")
                 .getLong("jars_per_second"))
         .isEqualTo(30L);
-
   }
 
   @Test
@@ -256,13 +252,10 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
 
   @Test
   void testUnderscoreToDashConversion() {
-    DeclarativeConfigProperties config = createConfig("otel.instrumentation.spring-web.test-property", "value");
+    DeclarativeConfigProperties config =
+        createConfig("otel.instrumentation.spring-web.test-property", "value");
 
-    assertThat(
-            config
-                .getStructured("java")
-                .getStructured("spring_web")
-                .getString("test_property"))
+    assertThat(config.getStructured("java").getStructured("spring_web").getString("test_property"))
         .isEqualTo("value");
   }
 
@@ -286,11 +279,7 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
         createConfig("otel.instrumentation.jdbc-datasource.enabled", "false");
 
     // Without "java" prefix, should not match the property
-    assertThat(
-            config
-                .getStructured("jdbc_datasource")
-                .getBoolean("enabled"))
-        .isNull();
+    assertThat(config.getStructured("jdbc_datasource").getBoolean("enabled")).isNull();
   }
 
   private static DeclarativeConfigProperties createConfig(String key, String value) {
