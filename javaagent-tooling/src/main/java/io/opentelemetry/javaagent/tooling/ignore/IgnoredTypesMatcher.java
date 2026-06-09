@@ -49,10 +49,6 @@ public class IgnoredTypesMatcher extends ElementMatcher.Junction.AbstractBase<Ty
       return true;
     }
 
-    if (name.startsWith("com.mchange.v2.c3p0.") && name.endsWith("Proxy")) {
-      return true;
-    }
-
     return false;
   }
 }

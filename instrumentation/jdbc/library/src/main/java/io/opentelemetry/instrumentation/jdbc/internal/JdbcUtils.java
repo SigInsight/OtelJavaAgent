@@ -8,7 +8,6 @@ package io.opentelemetry.instrumentation.jdbc.internal;
 import static java.util.logging.Level.FINE;
 
 import io.opentelemetry.instrumentation.jdbc.internal.dbinfo.DbInfo;
-import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
@@ -23,8 +22,6 @@ import javax.annotation.Nullable;
 public final class JdbcUtils {
 
   private static final Logger logger = Logger.getLogger(JdbcUtils.class.getName());
-
-  @Nullable private static Field c3poField = null;
 
   @Nullable
   public static Connection connectionFromStatement(Statement statement) {
@@ -41,12 +38,6 @@ public final class JdbcUtils {
   @Nullable
   public static Connection unwrapConnection(Connection connection) {
     try {
-      if (c3poField != null) {
-        if (connection.getClass().getName().equals("com.mchange.v2.c3p0.impl.NewProxyConnection")) {
-          return (Connection) c3poField.get(connection);
-        }
-      }
-
       try {
         // unwrap the connection to cache the underlying actual connection and to not cache proxy
         // objects
@@ -54,18 +45,6 @@ public final class JdbcUtils {
           connection = connection.unwrap(Connection.class);
         }
       } catch (Exception | AbstractMethodError ignored) {
-        if (connection != null) {
-          // Attempt to work around c3po delegating to an connection that doesn't support
-          // unwrapping.
-          Class<? extends Connection> connectionClass = connection.getClass();
-          if (connectionClass.getName().equals("com.mchange.v2.c3p0.impl.NewProxyConnection")) {
-            Field inner = connectionClass.getDeclaredField("inner");
-            inner.setAccessible(true);
-            c3poField = inner;
-            return (Connection) c3poField.get(connection);
-          }
-        }
-
         // perhaps wrapping isn't supported?
         // ex: org.h2.jdbc.JdbcConnection v1.3.175
         // or: jdts.jdbc which always throws `AbstractMethodError` (at least up to version 1.3)

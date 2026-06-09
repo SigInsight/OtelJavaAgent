@@ -127,7 +127,6 @@ public class SpringWebInstrumentationModule extends InstrumentationModule
     * MESSAGING_SPANS
     * DATABASE_CLIENT_SPANS
     * DATABASE_CLIENT_METRICS
-    * DATABASE_POOL_METRICS
     * JVM_RUNTIME_METRICS
     * GRAPHQL_SERVER_SPANS
     * FAAS_SERVER_SPANS

@@ -185,7 +185,6 @@ List of possible options:
 * [MESSAGING_SPANS](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/messaging/messaging-spans.md)
 * [DATABASE_CLIENT_SPANS](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-spans.md)
 * [DATABASE_CLIENT_METRICS](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-metrics.md)
-* [DATABASE_POOL_METRICS](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-metrics.md)
 * [JVM_RUNTIME_METRICS](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/runtime/jvm-metrics.md)
 * [GRAPHQL_SERVER_SPANS](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/graphql/graphql-spans.md)
 * [FAAS_SERVER_SPANS](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/faas/faas-spans.md)

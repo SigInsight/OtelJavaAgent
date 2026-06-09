@@ -43,49 +43,6 @@ libraries:
       Enable the capture of experimental HTTP server telemetry. Adds the `http.request.body.size` and `http.response.body.size` attributes to spans, and records `http.server.request.size` and `http.server.response.size` metrics.
     type: boolean
     default: false
-- name: alibaba-druid-1.0
-  display_name: Alibaba Druid
-  description: |
-    The Alibaba Druid instrumentation generates database connection pool metrics for druid data sources.
-  semantic_conventions:
-  - DATABASE_POOL_METRICS
-  library_link: https://github.com/alibaba/druid
-  source_path: instrumentation/alibaba-druid-1.0
-  scope:
-    name: io.opentelemetry.alibaba-druid-1.0
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.alibaba:druid:(,)
-  configurations:
-  - name: otel.semconv-stability.opt-in
-    declarative_name: general.semconv_stability.opt_in
-    description: |
-      Opt-in to emit stable semantic conventions instead of the old experimental semantic conventions. Accepts a comma-separated list of semantic convention groups (e.g., `database`, `http`, `messaging`). Use `<group>/dup` to emit both old and new conventions simultaneously. Stable semantic conventions will become the default in version 3.0 of the agent.
-    type: list
-    default: ''
-- name: apache-dbcp-2.0
-  display_name: Apache DBCP
-  description: |
-    This instrumentation enables database connection pools metrics for Apache DBCP.
-    The instrumentation uses `MBeanRegistration` methods for lifecycle detection, therefore it only activates if the `BasicDataSource` is registered to an `MBeanServer`. If using Spring Boot, this happens automatically as all Spring beans that support JMX registration are automatically registered by default.
-  semantic_conventions:
-  - DATABASE_POOL_METRICS
-  library_link: https://commons.apache.org/proper/commons-dbcp/
-  source_path: instrumentation/apache-dbcp-2.0
-  scope:
-    name: io.opentelemetry.apache-dbcp-2.0
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.apache.commons:commons-dbcp2:[2,)
-  configurations:
-  - name: otel.semconv-stability.opt-in
-    declarative_name: general.semconv_stability.opt_in
-    description: |
-      Opt-in to emit stable semantic conventions instead of the old experimental semantic conventions. Accepts a comma-separated list of semantic convention groups (e.g., `database`, `http`, `messaging`). Use `<group>/dup` to emit both old and new conventions simultaneously. Stable semantic conventions will become the default in version 3.0 of the agent.
-    type: list
-    default: ''
 - name: apache-httpasyncclient-4.1
   display_name: Apache HttpAsyncClient
   description: This instrumentation enables HTTP client spans and HTTP client metrics
@@ -547,20 +504,6 @@ libraries:
   source_path: instrumentation/avaje-jex-3.0
   scope:
     name: io.opentelemetry.avaje-jex-3.0
-- name: c3p0-0.9
-  display_name: c3p0
-  description: The c3p0 instrumentation provides connection pool metrics for c3p0
-    data sources.
-  semantic_conventions:
-  - DATABASE_POOL_METRICS
-  library_link: https://github.com/swaldman/c3p0
-  source_path: instrumentation/c3p0-0.9
-  scope:
-    name: io.opentelemetry.c3p0-0.9
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.mchange:c3p0:(,)
 - name: cassandra-3.0
   display_name: Cassandra Driver
   description: |
@@ -1315,19 +1258,6 @@ libraries:
   has_javaagent: true
   javaagent_target_versions:
   - org.hibernate.reactive:hibernate-reactive-core:(,)
-- name: hikaricp-3.0
-  display_name: HikariCP
-  description: This instrumentation enables database connection pool metrics for HikariCP.
-  semantic_conventions:
-  - DATABASE_POOL_METRICS
-  library_link: https://github.com/brettwooldridge/HikariCP
-  source_path: instrumentation/hikaricp-3.0
-  scope:
-    name: io.opentelemetry.hikaricp-3.0
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.zaxxer:HikariCP:[3.0.0,)
 - name: http-url-connection
   display_name: HttpURLConnection
   description: |
@@ -3421,20 +3351,6 @@ libraries:
   source_path: instrumentation/internal/internal-application-logger/bootstrap/bin/main/io/opentelemetry
   scope:
     name: io.opentelemetry.opentelemetry
-- name: oracle-ucp-11.2
-  display_name: Oracle UCP
-  description: |
-    The Oracle Universal Connection Pool (UCP) instrumentation enables database connection pool metrics for Oracle UCP data sources.
-  semantic_conventions:
-  - DATABASE_POOL_METRICS
-  library_link: https://docs.oracle.com/database/121/JJUCP/
-  source_path: instrumentation/oracle-ucp-11.2
-  scope:
-    name: io.opentelemetry.oracle-ucp-11.2
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.oracle.database.jdbc:ucp:[,)
 - name: oshi-5.0
   display_name: OSHI
   description: |
@@ -4303,26 +4219,6 @@ libraries:
     description: List of request parameter names to capture as span attributes.
     type: list
     default: ''
-- name: tomcat-jdbc-8.5
-  display_name: Tomcat JDBC
-  description: This instrumentation enables database connection pool metrics for Tomcat
-    JDBC.
-  semantic_conventions:
-  - DATABASE_POOL_METRICS
-  library_link: https://tomcat.apache.org/tomcat-8.5-doc/jdbc-pool.html
-  source_path: instrumentation/tomcat/tomcat-jdbc-8.5
-  scope:
-    name: io.opentelemetry.tomcat-jdbc-8.5
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.apache.tomcat:tomcat-jdbc:[8.5.0,)
-  configurations:
-  - name: otel.semconv-stability.opt-in
-    declarative_name: general.semconv_stability.opt_in
-    description: |
-      Opt-in to emit stable semantic conventions instead of the old experimental semantic conventions. Accepts a comma-separated list of semantic convention groups (e.g., `database`, `http`, `messaging`). Use `<group>/dup` to emit both old and new conventions simultaneously. Stable semantic conventions will become the default in version 3.0 of the agent.
-    type: list
-    default: ''
 - name: twilio-6.6
   display_name: Twilio
   description: |
@@ -4619,20 +4515,6 @@ libraries:
   has_javaagent: true
   javaagent_target_versions:
   - io.vertx:vertx-web:[3.0.0,)
-- name: vibur-dbcp-11.0
-  display_name: Vibur DBCP
-  description: |
-    This instrumentation enables database connection pool metrics for Vibur DBCP data sources.
-  semantic_conventions:
-  - DATABASE_POOL_METRICS
-  library_link: https://www.vibur.org/
-  source_path: instrumentation/vibur-dbcp-11.0
-  scope:
-    name: io.opentelemetry.vibur-dbcp-11.0
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.vibur:vibur-dbcp:[11.0,)
 - name: wicket-8.0
   source_path: instrumentation/wicket-8.0
   scope:

@@ -28,7 +28,7 @@ class EmittedMetricsParserTest {
     String input =
         """
         metrics_by_scope:
-          - scope: io.opentelemetry.alibaba-druid-1.0
+          - scope: io.opentelemetry.example
             metrics:
               - name: metric1
                 type: counter

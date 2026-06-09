@@ -188,13 +188,13 @@ Emeritus 角色说明见：
 ### 2. 先完成主源码编译
 
 ```bash
-./gradlew --no-daemon --console=plain compileJava compileTestJava
+./gradlew compileJava compileTestJava
 ```
 
 如果你只想验证主 agent 模块相关内容，也可以单独执行：
 
 ```bash
-./gradlew --no-daemon --console=plain :javaagent:compileJava
+./gradlew :javaagent:compileJava
 ```
 
 编译阶段的主要中间产物位置：
@@ -207,7 +207,7 @@ Emeritus 角色说明见：
 ### 3. 生成最终主 agent 包
 
 ```bash
-./gradlew --no-daemon --console=plain :javaagent:shadowJar
+./gradlew :javaagent:shadowJar
 ```
 
 这个任务会先生成并消费几个中间 jar，然后再组装最终 agent：
@@ -245,13 +245,13 @@ Emeritus 角色说明见：
 如果你希望一步完成清理、编译和最终打包，可以直接执行：
 
 ```bash
-./gradlew --no-daemon --console=plain clean :javaagent:shadowJar
+./gradlew clean :javaagent:shadowJar
 ```
 
 如果你还希望同时产出 `base` 变体，可执行：
 
 ```bash
-./gradlew --no-daemon --console=plain clean :javaagent:assemble
+./gradlew clean :javaagent:assemble
 ```
 
 因为 `:javaagent:assemble` 依赖：

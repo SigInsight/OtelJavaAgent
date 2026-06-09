@@ -8,8 +8,8 @@ package io.opentelemetry.instrumentation.spring.autoconfigure.internal.instrumen
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.runtimetelemetry.internal.Internal;
 import io.opentelemetry.instrumentation.spring.autoconfigure.internal.ConditionalOnEnabledInstrumentation;
+import jakarta.annotation.PreDestroy;
 import javax.annotation.Nullable;
-import javax.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;

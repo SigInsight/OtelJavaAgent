@@ -30,7 +30,7 @@ class EmittedScopeParserTest {
     String yamlContent =
         """
         scopes:
-          - name: io.opentelemetry.alibaba-druid-1.0
+          - name: io.opentelemetry.example
             version: 2.14.0-alpha-SNAPSHOT
             schemaUrl: http://schema.org
           - name: io.opentelemetry.another-scope
@@ -43,8 +43,7 @@ class EmittedScopeParserTest {
     assertThat(emittedScope.getScopes()).isNotNull();
     assertThat(emittedScope.getScopes()).hasSize(2);
 
-    assertThat(emittedScope.getScopes().get(0).getName())
-        .isEqualTo("io.opentelemetry.alibaba-druid-1.0");
+    assertThat(emittedScope.getScopes().get(0).getName()).isEqualTo("io.opentelemetry.example");
     assertThat(emittedScope.getScopes().get(0).getVersion()).isEqualTo("2.14.0-alpha-SNAPSHOT");
     assertThat(emittedScope.getScopes().get(0).getSchemaUrl()).isEqualTo("http://schema.org");
 

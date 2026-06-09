@@ -24,12 +24,6 @@ dependencies {
   testLibrary("org.apache.derby:derby:10.6.1.0")
   testLibrary("org.hsqldb:hsqldb:2.0.0")
 
-  testLibrary("org.apache.tomcat:tomcat-jdbc:7.0.19")
-  testLibrary("org.apache.tomcat:tomcat-juli:7.0.19") // tomcat jdbc needs this
-  testLibrary("com.zaxxer:HikariCP:2.4.0")
-  testLibrary("com.mchange:c3p0:0.9.5")
-  testLibrary("com.alibaba:druid:1.2.20")
-
   // some classes in earlier versions of derby were split out into derbytools in later versions
   latestDepTestLibrary("org.apache.derby:derbytools:latest.release")
 
