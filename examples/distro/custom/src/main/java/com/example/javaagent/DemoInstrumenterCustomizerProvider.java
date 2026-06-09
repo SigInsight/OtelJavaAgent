@@ -56,9 +56,7 @@ public class DemoInstrumenterCustomizerProvider implements InstrumenterCustomize
 
   private boolean isHttpServerInstrumentation(String instrumentationName) {
     return instrumentationName.contains("servlet")
-        || instrumentationName.contains("jetty")
         || instrumentationName.contains("tomcat")
-        || instrumentationName.contains("undertow")
         || instrumentationName.contains("spring-webmvc");
   }
 

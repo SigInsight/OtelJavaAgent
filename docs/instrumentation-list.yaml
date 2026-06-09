@@ -442,10 +442,6 @@ libraries:
       attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
     type: list
     default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
-- name: avaje-jex-3.0
-  source_path: instrumentation/avaje-jex-3.0
-  scope:
-    name: io.opentelemetry.avaje-jex-3.0
 - name: clickhouse-client-v1-0.5
   display_name: ClickHouse Java Client
   description: |
@@ -551,10 +547,6 @@ libraries:
     description: Whether to instrument all classes that implement the Executor interface.
     type: boolean
     default: false
-- name: finatra-2.9
-  source_path: instrumentation/finatra-2.9
-  scope:
-    name: io.opentelemetry.finatra-2.9
 - name: google-http-client-1.19
   display_name: Google HTTP Client
   description: This instrumentation enables HTTP client spans and HTTP client metrics
@@ -604,17 +596,6 @@ libraries:
       attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
     type: list
     default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
-  - name: otel.instrumentation.graphql.data-fetcher.enabled
-    declarative_name: java.graphql.data_fetcher.enabled
-    description: Enables span generation for data fetchers.
-    type: boolean
-    default: false
-  - name: otel.instrumentation.graphql.trivial-data-fetcher.enabled
-    declarative_name: java.graphql.trivial_data_fetcher.enabled
-    description: Whether to create spans for trivial data fetchers. A trivial data
-      fetcher is one that simply maps data from an object to a field.
-    type: boolean
-    default: false
 - name: hibernate-3.3
   display_name: Hibernate
   description: This instrumentation enables spans for Hibernate ORM operations.
@@ -1031,10 +1012,6 @@ libraries:
     description: Enables query sanitization for database queries.
     type: boolean
     default: true
-- name: jfinal-3.2
-  source_path: instrumentation/jfinal-3.2
-  scope:
-    name: io.opentelemetry.jfinal-3.2
 - name: jodd-http-4.2
   display_name: Jodd HTTP
   description: This instrumentation enables HTTP client spans and HTTP client metrics
@@ -1084,22 +1061,6 @@ libraries:
       attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
     type: list
     default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
-- name: jsf-mojarra-1.2
-  source_path: instrumentation/jsf/jsf-mojarra-1.2
-  scope:
-    name: io.opentelemetry.jsf-mojarra-1.2
-- name: jsf-mojarra-3.0
-  source_path: instrumentation/jsf/jsf-mojarra-3.0
-  scope:
-    name: io.opentelemetry.jsf-mojarra-3.0
-- name: jsf-myfaces-1.2
-  source_path: instrumentation/jsf/jsf-myfaces-1.2
-  scope:
-    name: io.opentelemetry.jsf-myfaces-1.2
-- name: jsf-myfaces-3.0
-  source_path: instrumentation/jsf/jsf-myfaces-3.0
-  scope:
-    name: io.opentelemetry.jsf-myfaces-3.0
 - name: ktor-1.0
   display_name: Ktor
   description: This standalone instrumentation enables HTTP server spans and HTTP
@@ -1650,27 +1611,6 @@ libraries:
   has_javaagent: true
   javaagent_target_versions:
   - org.mybatis:mybatis:[3.2.0,)
-- name: nats-2.17
-  display_name: NATS Client
-  description: This instrumentation enables messaging spans for NATS message producers
-    and consumers.
-  semantic_conventions:
-  - MESSAGING_SPANS
-  library_link: https://nats.io/
-  source_path: instrumentation/nats/nats-2.17
-  scope:
-    name: io.opentelemetry.nats-2.17
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - io.nats:jnats:[2.17.2,)
-  configurations:
-  - name: otel.instrumentation.messaging.experimental.capture-headers
-    declarative_name: java.common.messaging.capture_headers/development
-    description: |
-      Enables capturing messaging headers as span attributes. Provide a comma-separated list of header names to capture.
-    type: list
-    default: ''
 - name: netty-3.8
   display_name: Netty HTTP codec
   description: |
@@ -1993,28 +1933,6 @@ libraries:
       attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
     type: list
     default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
-- name: openai-java-1.1
-  display_name: OpenAI Java SDK
-  description: This instrumentation enables Gen AI client spans and metrics for the
-    OpenAI Java SDK.
-  semantic_conventions:
-  - GENAI_CLIENT_SPANS
-  - GENAI_CLIENT_METRICS
-  library_link: https://github.com/openai/openai-java
-  source_path: instrumentation/openai/openai-java-1.1
-  scope:
-    name: io.opentelemetry.openai-java-1.1
-  has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - com.openai:openai-java:[1.1.0,3)
-  configurations:
-  - name: otel.instrumentation.genai.capture-message-content
-    declarative_name: java.common.gen_ai.capture_message_content
-    description: |
-      Enables including the full content of user and assistant messages in emitted log events. Note that full content can have data privacy and size concerns, and care should be taken when enabling this.
-    type: boolean
-    default: false
 - name: opentelemetry
   source_path: instrumentation/internal/internal-application-logger/bootstrap/bin/main/io/opentelemetry
   scope:
@@ -2079,14 +1997,6 @@ libraries:
       services.
     type: map
     default: ''
-- name: ratpack-1.4
-  source_path: instrumentation/ratpack/ratpack-1.4
-  scope:
-    name: io.opentelemetry.ratpack-1.4
-- name: ratpack-1.7
-  source_path: instrumentation/ratpack/ratpack-1.7
-  scope:
-    name: io.opentelemetry.ratpack-1.7
 - name: reactor-3.1
   display_name: Reactor
   description: |
@@ -2412,10 +2322,6 @@ libraries:
       after the opening `<head>` tag.
     type: string
     default: ''
-- name: spring-boot-actuator-autoconfigure-2.0
-  source_path: instrumentation/spring/spring-boot-actuator-autoconfigure-2.0
-  scope:
-    name: io.opentelemetry.spring-boot-actuator-autoconfigure-2.0
 - name: spring-boot-resources
   display_name: Spring Boot Resource Detector
   description: |
@@ -2436,14 +2342,6 @@ libraries:
   scope:
     name: io.opentelemetry.spring-boot-resources
   has_javaagent: true
-- name: spring-cloud-aws-3.0
-  source_path: instrumentation/spring/spring-cloud-aws-3.0
-  scope:
-    name: io.opentelemetry.spring-cloud-aws-3.0
-- name: spring-cloud-gateway-2.0
-  source_path: instrumentation/spring/spring-cloud-gateway/spring-cloud-gateway-2.0
-  scope:
-    name: io.opentelemetry.spring-cloud-gateway-2.0
 - name: spring-cloud-gateway-webmvc-4.3
   display_name: Spring Cloud Gateway Server WebMVC
   description: |
@@ -2463,18 +2361,6 @@ libraries:
       Enables experimental `spring-cloud-gateway.route` attributes (e.g., `spring-cloud-gateway.route.id`, `spring-cloud-gateway.route.uri`, etc.) on spans.
     type: boolean
     default: false
-- name: spring-core-2.0
-  source_path: instrumentation/spring/spring-core-2.0
-  scope:
-    name: io.opentelemetry.spring-core-2.0
-- name: spring-data-1.8
-  source_path: instrumentation/spring/spring-data/spring-data-1.8
-  scope:
-    name: io.opentelemetry.spring-data-1.8
-- name: spring-integration-4.1
-  source_path: instrumentation/spring/spring-integration-4.1
-  scope:
-    name: io.opentelemetry.spring-integration-4.1
 - name: spring-security-config-6.0
   display_name: Spring Security
   description: |
@@ -2976,10 +2862,6 @@ libraries:
   has_javaagent: true
   javaagent_target_versions:
   - io.vertx:vertx-web:[3.0.0,)
-- name: wicket-8.0
-  source_path: instrumentation/wicket-8.0
-  scope:
-    name: io.opentelemetry.wicket-8.0
 custom:
 - name: external-annotations
   display_name: External Annotations

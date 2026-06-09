@@ -347,10 +347,7 @@ tasks.withType<Test>().configureEach {
   jvmArgs("-Dotel.java.disabled.resource.providers=$resourceClassesCsv")
 
   val trustStore = project(":testing-common").file("src/misc/testing-keystore.p12")
-  // Don't set for vaadin as tests need to be able to download nodejs when not cached in ~/.vaadin/
-  if (!project.path.contains("vaadin")) {
-    jvmArgumentProviders.add(KeystoreArgumentsProvider(trustStore))
-  }
+  jvmArgumentProviders.add(KeystoreArgumentsProvider(trustStore))
 
   // All tests must complete within 15 minutes.
   // This value is quite big because with lower values (3 mins) we were experiencing large number of false positives

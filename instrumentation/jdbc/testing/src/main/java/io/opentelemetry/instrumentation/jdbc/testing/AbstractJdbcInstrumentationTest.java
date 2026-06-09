@@ -29,7 +29,6 @@ import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SQL_
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_STATEMENT;
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_SYSTEM;
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DB_USER;
-import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DbSystemNameIncubatingValues.HSQLDB;
 import static io.opentelemetry.semconv.incubating.DbIncubatingAttributes.DbSystemNameIncubatingValues.OTHER_SQL;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,9 +37,6 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.mchange.v2.c3p0.ComboPooledDataSource;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import io.opentelemetry.api.logs.Severity;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.instrumentation.jdbc.TestConnection;
@@ -49,10 +45,7 @@ import io.opentelemetry.instrumentation.testing.internal.AutoCleanupExtension;
 import io.opentelemetry.instrumentation.testing.junit.InstrumentationExtension;
 import io.opentelemetry.sdk.testing.assertj.AttributeAssertion;
 import io.opentelemetry.sdk.testing.assertj.SpanDataAssert;
-import io.opentelemetry.sdk.testing.assertj.TraceAssert;
 import io.opentelemetry.sdk.trace.data.StatusData;
-import java.beans.PropertyVetoException;
-import java.io.Closeable;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.Driver;
@@ -61,7 +54,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -74,7 +66,6 @@ import org.apache.derby.jdbc.EmbeddedDriver;
 import org.assertj.core.api.ThrowingConsumer;
 import org.h2.jdbcx.JdbcDataSource;
 import org.hsqldb.jdbc.JDBCDriver;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -109,15 +100,8 @@ public abstract class AbstractJdbcInstrumentationTest {
           "h2", "jdbc:h2:mem:" + DATABASE_NAME,
           "derby", "jdbc:derby:memory:" + DATABASE_NAME + ";create=true",
           "hsqldb", "jdbc:hsqldb:mem:" + DATABASE_NAME);
-  private static final Map<String, String> JDBC_DRIVER_CLASS_NAMES =
-      ImmutableMap.of(
-          "h2", "org.h2.Driver",
-          "derby", "org.apache.derby.jdbc.EmbeddedDriver",
-          "hsqldb", "org.hsqldb.jdbc.JDBCDriver");
   private static final Map<String, String> jdbcUserNames = Maps.newHashMap();
   private static final Properties connectionProps = new Properties();
-  // JDBC Connection pool name (i.e. HikariCP) -> Map<databaseName, Datasource>
-  private static final Map<String, Map<String, DataSource>> cpDatasources = Maps.newHashMap();
 
   static {
     jdbcUserNames.put("derby", "APP");
@@ -126,91 +110,6 @@ public abstract class AbstractJdbcInstrumentationTest {
 
     connectionProps.put("databaseName", "someDb");
     connectionProps.put("OPEN_NEW", "true"); // So H2 doesn't complain about username/password.
-  }
-
-  @BeforeAll
-  static void setUp() {
-    prepareConnectionPoolDatasources();
-  }
-
-  static void prepareConnectionPoolDatasources() {
-    List<String> connectionPoolNames = asList("tomcat", "hikari", "c3p0");
-    connectionPoolNames.forEach(
-        cpName -> {
-          Map<String, DataSource> dbDsMapping = new HashMap<>();
-          JDBC_URLS.forEach(
-              (dbType, jdbcUrl) -> {
-                DataSource dataSource = createDs(cpName, dbType, jdbcUrl);
-                if (dataSource instanceof Closeable) {
-                  cleanup.deferAfterAll((Closeable) dataSource);
-                }
-                dbDsMapping.put(dbType, dataSource);
-              });
-          cpDatasources.put(cpName, dbDsMapping);
-        });
-  }
-
-  static DataSource createTomcatDs(String dbType, String jdbcUrl) {
-    org.apache.tomcat.jdbc.pool.DataSource ds = new org.apache.tomcat.jdbc.pool.DataSource();
-    String jdbcUrlToSet = dbType.equals("derby") ? jdbcUrl + ";create=true" : jdbcUrl;
-    ds.setUrl(jdbcUrlToSet);
-    ds.setDriverClassName(JDBC_DRIVER_CLASS_NAMES.get(dbType));
-    String username = jdbcUserNames.get(dbType);
-    if (username != null) {
-      ds.setUsername(username);
-    }
-    ds.setPassword("");
-    ds.setMaxActive(1); // to test proper caching, having > 1 max active connection will be hard to
-    // determine whether the connection is properly cached
-    return ds;
-  }
-
-  static DataSource createHikariDs(String dbType, String jdbcUrl) {
-    HikariConfig config = new HikariConfig();
-    String jdbcUrlToSet = dbType.equals("derby") ? jdbcUrl + ";create=true" : jdbcUrl;
-    config.setJdbcUrl(jdbcUrlToSet);
-    String username = jdbcUserNames.get(dbType);
-    if (username != null) {
-      config.setUsername(username);
-    }
-    config.setPassword("");
-    config.addDataSourceProperty("cachePrepStmts", "true");
-    config.addDataSourceProperty("prepStmtCacheSize", "250");
-    config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-    config.setMaximumPoolSize(1);
-
-    return new HikariDataSource(config);
-  }
-
-  static DataSource createC3P0Ds(String dbType, String jdbcUrl) {
-    ComboPooledDataSource ds = new ComboPooledDataSource();
-    try {
-      ds.setDriverClass(JDBC_DRIVER_CLASS_NAMES.get(dbType));
-    } catch (PropertyVetoException e) {
-      throw new IllegalStateException(e);
-    }
-    String jdbcUrlToSet = dbType.equals("derby") ? jdbcUrl + ";create=true" : jdbcUrl;
-    ds.setJdbcUrl(jdbcUrlToSet);
-    String username = jdbcUserNames.get(dbType);
-    if (username != null) {
-      ds.setUser(username);
-    }
-    ds.setPassword("");
-    ds.setMaxPoolSize(1);
-    return ds;
-  }
-
-  static DataSource createDs(String connectionPoolName, String dbType, String jdbcUrl) {
-    switch (connectionPoolName) {
-      case "tomcat":
-        return createTomcatDs(dbType, jdbcUrl);
-      case "hikari":
-        return createHikariDs(dbType, jdbcUrl);
-      case "c3p0":
-        return createC3P0Ds(dbType, jdbcUrl);
-      default:
-        throw new IllegalArgumentException("Unknown connection pool: " + connectionPoolName);
-    }
   }
 
   static Stream<Arguments> basicStatementStream() throws SQLException {
@@ -263,87 +162,6 @@ public abstract class AbstractJdbcInstrumentationTest {
         Arguments.of(
             "hsqldb",
             new JDBCDriver().connect(JDBC_URLS.get("hsqldb"), connectionProps),
-            "SA",
-            "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS",
-            "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS",
-            "SELECT INFORMATION_SCHEMA.SYSTEM_USERS",
-            "hsqldb:mem:",
-            "INFORMATION_SCHEMA.SYSTEM_USERS"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("tomcat").get("h2").getConnection(),
-            null,
-            "SELECT 3",
-            "SELECT ?",
-            emitStableDatabaseSemconv() ? "SELECT" : "SELECT " + DATABASE_NAME_LOWER,
-            "h2:mem:",
-            null),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("tomcat").get("derby").getConnection(),
-            "APP",
-            "SELECT 3 FROM SYSIBM.SYSDUMMY1",
-            "SELECT ? FROM SYSIBM.SYSDUMMY1",
-            "SELECT SYSIBM.SYSDUMMY1",
-            "derby:memory:",
-            "SYSIBM.SYSDUMMY1"),
-        Arguments.of(
-            "hsqldb",
-            cpDatasources.get("tomcat").get("hsqldb").getConnection(),
-            "SA",
-            "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS",
-            "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS",
-            "SELECT INFORMATION_SCHEMA.SYSTEM_USERS",
-            "hsqldb:mem:",
-            "INFORMATION_SCHEMA.SYSTEM_USERS"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("hikari").get("h2").getConnection(),
-            null,
-            "SELECT 3",
-            "SELECT ?",
-            emitStableDatabaseSemconv() ? "SELECT" : "SELECT " + DATABASE_NAME_LOWER,
-            "h2:mem:",
-            null),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("hikari").get("derby").getConnection(),
-            "APP",
-            "SELECT 3 FROM SYSIBM.SYSDUMMY1",
-            "SELECT ? FROM SYSIBM.SYSDUMMY1",
-            "SELECT SYSIBM.SYSDUMMY1",
-            "derby:memory:",
-            "SYSIBM.SYSDUMMY1"),
-        Arguments.of(
-            "hsqldb",
-            cpDatasources.get("hikari").get("hsqldb").getConnection(),
-            "SA",
-            "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS",
-            "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS",
-            "SELECT INFORMATION_SCHEMA.SYSTEM_USERS",
-            "hsqldb:mem:",
-            "INFORMATION_SCHEMA.SYSTEM_USERS"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("c3p0").get("h2").getConnection(),
-            null,
-            "SELECT 3",
-            "SELECT ?",
-            emitStableDatabaseSemconv() ? "SELECT" : "SELECT " + DATABASE_NAME_LOWER,
-            "h2:mem:",
-            null),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("c3p0").get("derby").getConnection(),
-            "APP",
-            "SELECT 3 FROM SYSIBM.SYSDUMMY1",
-            "SELECT ? FROM SYSIBM.SYSDUMMY1",
-            "SELECT SYSIBM.SYSDUMMY1",
-            "derby:memory:",
-            "SYSIBM.SYSDUMMY1"),
-        Arguments.of(
-            "hsqldb",
-            cpDatasources.get("c3p0").get("hsqldb").getConnection(),
             "SA",
             "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS",
             "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS",
@@ -484,66 +302,6 @@ public abstract class AbstractJdbcInstrumentationTest {
         Arguments.of(
             "derby",
             new EmbeddedDriver().connect(JDBC_URLS.get("derby"), null),
-            "APP",
-            "SELECT 3 FROM SYSIBM.SYSDUMMY1",
-            emitStableDatabaseSemconv()
-                ? "SELECT 3 FROM SYSIBM.SYSDUMMY1"
-                : "SELECT ? FROM SYSIBM.SYSDUMMY1",
-            "SELECT SYSIBM.SYSDUMMY1",
-            "derby:memory:",
-            "SYSIBM.SYSDUMMY1"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("tomcat").get("h2").getConnection(),
-            null,
-            "SELECT 3",
-            emitStableDatabaseSemconv() ? "SELECT 3" : "SELECT ?",
-            emitStableDatabaseSemconv() ? "SELECT" : "SELECT " + DATABASE_NAME_LOWER,
-            "h2:mem:",
-            null),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("tomcat").get("derby").getConnection(),
-            "APP",
-            "SELECT 3 FROM SYSIBM.SYSDUMMY1",
-            emitStableDatabaseSemconv()
-                ? "SELECT 3 FROM SYSIBM.SYSDUMMY1"
-                : "SELECT ? FROM SYSIBM.SYSDUMMY1",
-            "SELECT SYSIBM.SYSDUMMY1",
-            "derby:memory:",
-            "SYSIBM.SYSDUMMY1"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("hikari").get("h2").getConnection(),
-            null,
-            "SELECT 3",
-            emitStableDatabaseSemconv() ? "SELECT 3" : "SELECT ?",
-            emitStableDatabaseSemconv() ? "SELECT" : "SELECT " + DATABASE_NAME_LOWER,
-            "h2:mem:",
-            null),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("hikari").get("derby").getConnection(),
-            "APP",
-            "SELECT 3 FROM SYSIBM.SYSDUMMY1",
-            emitStableDatabaseSemconv()
-                ? "SELECT 3 FROM SYSIBM.SYSDUMMY1"
-                : "SELECT ? FROM SYSIBM.SYSDUMMY1",
-            "SELECT SYSIBM.SYSDUMMY1",
-            "derby:memory:",
-            "SYSIBM.SYSDUMMY1"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("c3p0").get("h2").getConnection(),
-            null,
-            "SELECT 3",
-            emitStableDatabaseSemconv() ? "SELECT 3" : "SELECT ?",
-            emitStableDatabaseSemconv() ? "SELECT" : "SELECT " + DATABASE_NAME_LOWER,
-            "h2:mem:",
-            null),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("c3p0").get("derby").getConnection(),
             "APP",
             "SELECT 3 FROM SYSIBM.SYSDUMMY1",
             emitStableDatabaseSemconv()
@@ -775,91 +533,7 @@ public abstract class AbstractJdbcInstrumentationTest {
             "CREATE TABLE PUBLIC.S_HSQLDB (id INTEGER not NULL, PRIMARY KEY ( id ))",
             "CREATE TABLE PUBLIC.S_HSQLDB",
             "hsqldb:mem:",
-            "PUBLIC.S_HSQLDB"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("tomcat").get("h2").getConnection(),
-            null,
-            "CREATE TABLE S_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE S_H2_TOMCAT"
-                : "CREATE TABLE jdbcunittest.S_H2_TOMCAT",
-            "h2:mem:",
-            "S_H2_TOMCAT"),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("tomcat").get("derby").getConnection(),
-            "APP",
-            "CREATE TABLE S_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE S_DERBY_TOMCAT"
-                : "CREATE TABLE jdbcunittest.S_DERBY_TOMCAT",
-            "derby:memory:",
-            "S_DERBY_TOMCAT"),
-        Arguments.of(
-            "hsqldb",
-            cpDatasources.get("tomcat").get("hsqldb").getConnection(),
-            "SA",
-            "CREATE TABLE PUBLIC.S_HSQLDB_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            "CREATE TABLE PUBLIC.S_HSQLDB_TOMCAT",
-            "hsqldb:mem:",
-            "PUBLIC.S_HSQLDB_TOMCAT"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("hikari").get("h2").getConnection(),
-            null,
-            "CREATE TABLE S_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE S_H2_HIKARI"
-                : "CREATE TABLE jdbcunittest.S_H2_HIKARI",
-            "h2:mem:",
-            "S_H2_HIKARI"),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("hikari").get("derby").getConnection(),
-            "APP",
-            "CREATE TABLE S_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE S_DERBY_HIKARI"
-                : "CREATE TABLE jdbcunittest.S_DERBY_HIKARI",
-            "derby:memory:",
-            "S_DERBY_HIKARI"),
-        Arguments.of(
-            "hsqldb",
-            cpDatasources.get("hikari").get("hsqldb").getConnection(),
-            "SA",
-            "CREATE TABLE PUBLIC.S_HSQLDB_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            "CREATE TABLE PUBLIC.S_HSQLDB_HIKARI",
-            "hsqldb:mem:",
-            "PUBLIC.S_HSQLDB_HIKARI"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("c3p0").get("h2").getConnection(),
-            null,
-            "CREATE TABLE S_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE S_H2_C3P0"
-                : "CREATE TABLE jdbcunittest.S_H2_C3P0",
-            "h2:mem:",
-            "S_H2_C3P0"),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("c3p0").get("derby").getConnection(),
-            "APP",
-            "CREATE TABLE S_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE S_DERBY_C3P0"
-                : "CREATE TABLE jdbcunittest.S_DERBY_C3P0",
-            "derby:memory:",
-            "S_DERBY_C3P0"),
-        Arguments.of(
-            "hsqldb",
-            cpDatasources.get("c3p0").get("hsqldb").getConnection(),
-            "SA",
-            "CREATE TABLE PUBLIC.S_HSQLDB_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            "CREATE TABLE PUBLIC.S_HSQLDB_C3P0",
-            "hsqldb:mem:",
-            "PUBLIC.S_HSQLDB_C3P0"));
+            "PUBLIC.S_HSQLDB"));
   }
 
   @ParameterizedTest
@@ -927,67 +601,7 @@ public abstract class AbstractJdbcInstrumentationTest {
                 ? "CREATE TABLE PS_DERBY"
                 : "CREATE TABLE jdbcunittest.PS_DERBY",
             "derby:memory:",
-            "PS_DERBY"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("tomcat").get("h2").getConnection(),
-            null,
-            "CREATE TABLE PS_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE PS_H2_TOMCAT"
-                : "CREATE TABLE jdbcunittest.PS_H2_TOMCAT",
-            "h2:mem:",
-            "PS_H2_TOMCAT"),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("tomcat").get("derby").getConnection(),
-            "APP",
-            "CREATE TABLE PS_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE PS_DERBY_TOMCAT"
-                : "CREATE TABLE jdbcunittest.PS_DERBY_TOMCAT",
-            "derby:memory:",
-            "PS_DERBY_TOMCAT"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("hikari").get("h2").getConnection(),
-            null,
-            "CREATE TABLE PS_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE PS_H2_HIKARI"
-                : "CREATE TABLE jdbcunittest.PS_H2_HIKARI",
-            "h2:mem:",
-            "PS_H2_HIKARI"),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("hikari").get("derby").getConnection(),
-            "APP",
-            "CREATE TABLE PS_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE PS_DERBY_HIKARI"
-                : "CREATE TABLE jdbcunittest.PS_DERBY_HIKARI",
-            "derby:memory:",
-            "PS_DERBY_HIKARI"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("c3p0").get("h2").getConnection(),
-            null,
-            "CREATE TABLE PS_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE PS_H2_C3P0"
-                : "CREATE TABLE jdbcunittest.PS_H2_C3P0",
-            "h2:mem:",
-            "PS_H2_C3P0"),
-        Arguments.of(
-            "derby",
-            cpDatasources.get("c3p0").get("derby").getConnection(),
-            "APP",
-            "CREATE TABLE PS_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE PS_DERBY_C3P0"
-                : "CREATE TABLE jdbcunittest.PS_DERBY_C3P0",
-            "derby:memory:",
-            "PS_DERBY_C3P0"));
+            "PS_DERBY"));
   }
 
   @ParameterizedTest
@@ -1025,26 +639,6 @@ public abstract class AbstractJdbcInstrumentationTest {
                 : "CREATE TABLE jdbcunittest.PS_LARGE_H2",
             "h2:mem:",
             "PS_LARGE_H2"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("tomcat").get("h2").getConnection(),
-            null,
-            "CREATE TABLE PS_LARGE_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE PS_LARGE_H2_TOMCAT"
-                : "CREATE TABLE jdbcunittest.PS_LARGE_H2_TOMCAT",
-            "h2:mem:",
-            "PS_LARGE_H2_TOMCAT"),
-        Arguments.of(
-            "h2",
-            cpDatasources.get("hikari").get("h2").getConnection(),
-            null,
-            "CREATE TABLE PS_LARGE_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))",
-            emitStableDatabaseSemconv()
-                ? "CREATE TABLE PS_LARGE_H2_HIKARI"
-                : "CREATE TABLE jdbcunittest.PS_LARGE_H2_HIKARI",
-            "h2:mem:",
-            "PS_LARGE_H2_HIKARI"),
         Arguments.of(
             "derby",
             new EmbeddedDriver().connect(JDBC_URLS.get("derby"), null),
@@ -1277,13 +871,7 @@ public abstract class AbstractJdbcInstrumentationTest {
                 ds -> ((EmbeddedDataSource) ds).setDatabaseName("memory:" + DATABASE_NAME),
             "derby",
             "APP",
-            "derby:memory:"),
-        Arguments.of(cpDatasources.get("hikari").get("h2"), null, "h2", null, "h2:mem:"),
-        Arguments.of(
-            cpDatasources.get("hikari").get("derby"), null, "derby", "APP", "derby:memory:"),
-        Arguments.of(cpDatasources.get("c3p0").get("h2"), null, "h2", null, "h2:mem:"),
-        Arguments.of(
-            cpDatasources.get("c3p0").get("derby"), null, "derby", "APP", "derby:memory:"));
+            "derby:memory:"));
   }
 
   @ParameterizedTest(autoCloseArguments = false)
@@ -1468,76 +1056,6 @@ public abstract class AbstractJdbcInstrumentationTest {
                                     maybeStablePeerService(),
                                     hasServicePeerName() ? "test-peer-service" : null),
                                 equalTo(SERVER_ADDRESS, "localhost"))));
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"hikari", "tomcat", "c3p0"})
-  void testConnectionCached(String connectionPoolName) throws SQLException {
-    String dbType = "hsqldb";
-    DataSource ds = wrap(createDs(connectionPoolName, dbType, JDBC_URLS.get(dbType)));
-    cleanup.deferCleanup(
-        () -> {
-          if (ds instanceof Closeable) {
-            ((Closeable) ds).close();
-          }
-        });
-    String query = "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS";
-    int numQueries = 5;
-    int[] res = new int[numQueries];
-
-    for (int i = 0; i < numQueries; ++i) {
-      try (Connection connection = ds.getConnection();
-          PreparedStatement statement = connection.prepareStatement(query)) {
-        ResultSet rs = statement.executeQuery();
-        if (rs.next()) {
-          res[i] = rs.getInt(1);
-        } else {
-          res[i] = 0;
-        }
-      }
-    }
-
-    for (int i = 0; i < numQueries; ++i) {
-      assertThat(res[i]).isEqualTo(3);
-    }
-
-    List<Consumer<TraceAssert>> assertions = new ArrayList<>();
-    Consumer<TraceAssert> traceAssertConsumer =
-        trace ->
-            trace.hasSpansSatisfyingExactly(
-                span ->
-                    span.hasName("SELECT INFORMATION_SCHEMA.SYSTEM_USERS")
-                        .hasKind(SpanKind.CLIENT)
-                        .hasAttributesSatisfyingExactly(
-                            equalTo(maybeStable(DB_SYSTEM), HSQLDB),
-                            equalTo(maybeStable(DB_NAME), DATABASE_NAME_LOWER),
-                            equalTo(DB_USER, emitStableDatabaseSemconv() ? null : "SA"),
-                            equalTo(
-                                DB_CONNECTION_STRING,
-                                emitStableDatabaseSemconv() ? null : "hsqldb:mem:"),
-                            equalTo(
-                                maybeStable(DB_STATEMENT),
-                                emitStableDatabaseSemconv()
-                                    ? "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS"
-                                    : "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"),
-                            equalTo(
-                                DB_QUERY_SUMMARY,
-                                emitStableDatabaseSemconv()
-                                    ? "SELECT INFORMATION_SCHEMA.SYSTEM_USERS"
-                                    : null),
-                            equalTo(
-                                maybeStable(DB_OPERATION),
-                                emitStableDatabaseSemconv() ? null : "SELECT"),
-                            equalTo(
-                                maybeStable(DB_SQL_TABLE),
-                                emitStableDatabaseSemconv()
-                                    ? null
-                                    : "INFORMATION_SCHEMA.SYSTEM_USERS")));
-    for (int i = 0; i < numQueries; i++) {
-      assertions.add(traceAssertConsumer);
-    }
-
-    testing().waitAndAssertTraces(assertions);
   }
 
   @FunctionalInterface

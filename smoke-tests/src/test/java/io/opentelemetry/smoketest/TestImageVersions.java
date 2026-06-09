@@ -14,11 +14,6 @@ public class TestImageVersions {
   // smoke-test-grpc
   public static final String GRPC_VERSION = "20251117.19445937433";
 
-  // smoke-test-play
-  public static final String PLAY_VERSION = "20251117.19437482782";
-
-  // smoke-test-quarkus
-  public static final String QUARKUS_VERSION = "20251119.19511997816";
 
   // smoke-test-security-manager
   public static final String SECURITY_MANAGER_VERSION = "20251116.19402383852";

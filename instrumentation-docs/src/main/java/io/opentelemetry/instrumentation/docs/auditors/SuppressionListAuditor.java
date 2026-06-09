@@ -31,7 +31,7 @@ public class SuppressionListAuditor implements DocumentationAuditor {
 
   // Used for consolidating instrumentation groups where we override the key with the value
   private static final Map<String, String> INSTRUMENTATION_DISABLE_OVERRIDES =
-      Map.of("akka-actor-forkjoin", "akka-actor");
+      Map.of();
 
   private static final List<String> INSTRUMENTATION_EXCLUSIONS =
       List.of("resources", "spring-boot-resources");
