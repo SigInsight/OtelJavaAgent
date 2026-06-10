@@ -151,14 +151,10 @@
 
 ---
 
-## 待讨论
-
-### 声明式配置（Declarative Config）
+## 保留：声明式配置（Declarative Config）
 
 - 依赖：Jackson-databind + SnakeYAML + declarative-config SDK
-- 当前用户使用环境变量配置，未使用 YAML 文件
-- 删除后退回到纯环境变量/系统属性配置方式
-- 所有功能不丢失，只是配置方式改变
+- **保留原因**：提供 `default_enabled + enabled 列表` 的全局插桩控制、方法级排除的结构化配置、URL 模板规则等高级能力，环境变量无法完全替代。虽然当前未使用，但未来复杂场景下可能需要。
 
 ---
 
