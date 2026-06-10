@@ -96,6 +96,57 @@
 
 ---
 
+---
+
+## 第5步：移除云资源探测（AWS/GCP/Azure/CloudFoundry）
+
+### 移除的依赖
+
+从 `javaagent-tooling/build.gradle.kts` 和 `spring-boot-starter/build.gradle.kts` 中移除：
+- `opentelemetry-azure-resources`
+- `opentelemetry-aws-resources`
+- `opentelemetry-gcp-resources`
+- `opentelemetry-cloudfoundry-resources`
+
+从 `dependencyManagement/build.gradle.kts` 移除对应的版本约束。
+
+### 代码变更
+
+- `ResourceProviderPropertiesCustomizer.java` — 移除 12 个云 provider 的注册（Azure 5个、AWS 5个、GCP 1个、CloudFoundry 1个）
+- `OpenTelemetryAutoConfigurationTest.java` — 更新测试断言，移除云 provider 类名
+
+### 保留
+
+- 本地资源探测（`instrumentation:resources:library`）：container.id、host.name/host.id/host.arch、process.pid/process.runtime.*、os.type/os.description
+- `telemetry.distro.name` / `telemetry.distro.version` 属性
+
+### 影响评估
+
+- 丢失：AWS/GCP/Azure/CloudFoundry 的自动资源属性探测（cloud.provider、cloud.region、instance.id 等）
+- 不影响：trace/metrics/logs 的收集和导出
+- 不影响：本地资源属性（host、process、container、os）
+- 预计减少约 **2-3MB**
+
+---
+
+## 待讨论
+
+### 声明式配置（Declarative Config）
+
+- 依赖：Jackson-databind + SnakeYAML + declarative-config SDK，约 ~2.5MB
+- 当前用户使用环境变量配置，未使用 YAML 文件
+- 删除后退回到纯环境变量/系统属性配置方式
+- 所有功能不丢失，只是配置方式改变
+
+### Prometheus Exporter + Protobuf
+
+- 依赖：`opentelemetry-exporter-prometheus` → `protobuf-java:4.34.0`，约 ~5MB
+- 当前用户使用 OTLP 推送模式（`OTEL_TRACES_EXPORTER=otlp`），未使用 Prometheus pull 模式
+- 删除后不支持 Prometheus /metrics 端点暴露
+- OTLP trace/metrics/logs 导出完全不受影响
+
+---
+
 ## 执行原则
 
 - 每步之后跑 `./gradlew compileJava` 验证

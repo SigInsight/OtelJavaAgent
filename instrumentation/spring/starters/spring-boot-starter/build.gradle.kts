@@ -16,10 +16,7 @@ dependencies {
 
   implementation(project(":instrumentation:resources:library"))
   implementation("io.opentelemetry:opentelemetry-sdk-extension-incubator")
-  implementation("io.opentelemetry.contrib:opentelemetry-azure-resources")
-  implementation("io.opentelemetry.contrib:opentelemetry-aws-resources")
-  implementation("io.opentelemetry.contrib:opentelemetry-gcp-resources")
-  implementation("io.opentelemetry.contrib:opentelemetry-cloudfoundry-resources")
+  // 云资源探测已移除（AWS/GCP/Azure/CloudFoundry），保留本地资源探测
   implementation("io.opentelemetry.contrib:opentelemetry-baggage-processor")
   implementation("io.opentelemetry.contrib:opentelemetry-samplers")
 }

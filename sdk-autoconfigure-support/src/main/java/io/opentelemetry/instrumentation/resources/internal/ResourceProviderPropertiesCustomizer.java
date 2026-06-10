@@ -28,31 +28,7 @@ public class ResourceProviderPropertiesCustomizer implements AutoConfigurationCu
   private static final Map<String, String> DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS = new HashMap<>();
 
   static {
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.azure.resource.AzureAksResourceProvider", "azure");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.azure.resource.AzureAppServiceResourceProvider", "azure");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.azure.resource.AzureContainersResourceProvider", "azure");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.azure.resource.AzureFunctionsResourceProvider", "azure");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.azure.resource.AzureVmResourceProvider", "azure");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.aws.resource.BeanstalkResourceProvider", "aws");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.aws.resource.Ec2ResourceProvider", "aws");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.aws.resource.EcsResourceProvider", "aws");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.aws.resource.EksResourceProvider", "aws");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.aws.resource.LambdaResourceProvider", "aws");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.gcp.resource.GCPResourceProvider", "gcp");
-    DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
-        "io.opentelemetry.contrib.cloudfoundry.resources.CloudFoundryResourceProvider",
-        "cloudfoundry");
+    // 云资源探测（AWS/GCP/Azure/CloudFoundry）已移除，仅保留本地资源探测
     // for testing
     DISABLED_BY_DEFAULT_RESOURCE_PROVIDERS.put(
         "io.opentelemetry.instrumentation.resources.internal.ResourceProviderPropertiesCustomizerTest$Provider",
