@@ -97,9 +97,7 @@ val DEPENDENCIES = listOf(
   "commons-logging:commons-logging:1.3.6",
   "commons-validator:commons-validator:1.10.1",
   "io.netty:netty:3.10.6.Final",
-  "io.opentelemetry.contrib:opentelemetry-aws-xray-propagator:${otelContribVersion}",
-  "io.opentelemetry.contrib:opentelemetry-baggage-processor:${otelContribVersion}",
-  "io.opentelemetry.contrib:opentelemetry-samplers:${otelContribVersion}",
+  // 已移除：aws-xray-propagator、baggage-processor、contrib-samplers 版本约束
   "io.opentelemetry.proto:opentelemetry-proto:1.10.0-alpha",
   "io.opentelemetry:opentelemetry-extension-annotations:1.18.0", // deprecated, no longer part of bom
   "org.assertj:assertj-core:3.27.7",

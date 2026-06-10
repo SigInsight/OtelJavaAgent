@@ -38,16 +38,7 @@ dependencies {
   implementation("io.opentelemetry:opentelemetry-exporter-otlp")
   implementation("io.opentelemetry:opentelemetry-exporter-logging-otlp")
 
-  // Prometheus exporter 已移除，protobuf-java 随之移除
-  implementation("io.opentelemetry:opentelemetry-exporter-zipkin")
-
-  implementation("io.opentelemetry:opentelemetry-sdk-extension-jaeger-remote-sampler")
-
-  implementation("io.opentelemetry.contrib:opentelemetry-aws-xray-propagator")
-
-  // 云资源探测已移除（AWS/GCP/Azure/CloudFoundry），保留本地资源探测（container/host/process/os）
-  implementation("io.opentelemetry.contrib:opentelemetry-baggage-processor")
-  implementation("io.opentelemetry.contrib:opentelemetry-samplers")
+  // 已移除：zipkin exporter、jaeger-remote-sampler、aws-xray-propagator、baggage-processor、contrib-samplers
 
   api("net.bytebuddy:byte-buddy-dep")
   implementation("org.ow2.asm:asm-tree")

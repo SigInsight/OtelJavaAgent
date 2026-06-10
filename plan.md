@@ -151,6 +151,49 @@
 
 ---
 
+## 第7步：移除非必要运行时依赖 [✅ 已完成]
+
+### 移除的依赖
+
+从 `javaagent-tooling/build.gradle.kts` 移除：
+- `opentelemetry-exporter-zipkin`（含传递依赖 zipkin-reporter、zipkin-sender-okhttp3）
+- `opentelemetry-sdk-extension-jaeger-remote-sampler`
+- `opentelemetry-aws-xray-propagator`
+- `opentelemetry-baggage-processor`
+- `opentelemetry-contrib-samplers`
+
+从 `spring-boot-starter/build.gradle.kts` 移除：
+- `opentelemetry-baggage-processor`
+- `opentelemetry-contrib-samplers`
+
+从 `dependencyManagement/build.gradle.kts` 移除对应版本约束。
+
+### 代码变更
+
+- `RemappingUrlConnection.java` — 移除 AWS X-Ray shading 规则
+
+### 体积对比
+
+| | 体积 |
+|---|---|
+| 移除前 | 16.3 MB |
+| 移除后 | 15.8 MB |
+| **减少** | **0.5 MB（3.0%）** |
+
+### 性能影响
+
+- 减少 SPI 自动发现组件数量，降低启动时 ServiceLoader 扫描开销
+- 减少 ByteBuddy 注册的 exporter/propagator 数量
+
+### 影响评估
+
+- `OTEL_TRACES_EXPORTER=otlp` → ✅ 正常
+- `OTEL_TRACES_EXPORTER=zipkin` → ❌ 不可用
+- `OTEL_PROPAGATORS=xray` → ❌ 不可用
+- OTLP trace/metrics/logs 导出完全不受影响
+
+---
+
 ## 保留：声明式配置（Declarative Config）
 
 - 依赖：Jackson-databind + SnakeYAML + declarative-config SDK

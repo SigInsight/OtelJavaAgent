@@ -39,9 +39,6 @@ public class RemappingUrlConnection extends URLConnection {
               "#io.opentelemetry.semconv",
               "#io.opentelemetry.javaagent.shaded.io.opentelemetry.semconv"),
           rule(
-              "#io.opentelemetry.contrib.awsxray",
-              "#io.opentelemetry.javaagent.shaded.io.opentelemetry.contrib.awsxray"),
-          rule(
               "#io.opentelemetry.extension.kotlin",
               "#io.opentelemetry.javaagent.shaded.io.opentelemetry.extension.kotlin"),
           rule("#application.io.opentelemetry", "#io.opentelemetry"),
