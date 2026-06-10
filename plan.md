@@ -199,6 +199,14 @@
 - 依赖：Jackson-databind + SnakeYAML + declarative-config SDK
 - **保留原因**：提供 `default_enabled + enabled 列表` 的全局插桩控制、方法级排除的结构化配置、URL 模板规则等高级能力，环境变量无法完全替代。虽然当前未使用，但未来复杂场景下可能需要。
 
+## 保留：Kotlin 协程扩展（opentelemetry-extension-kotlin）
+
+- 依赖：`opentelemetry-extension-kotlin`（传递引入 `kotlin-stdlib`）
+- **保留原因**：
+  - **零体积收益**：`kotlin-stdlib` 通过 OkIO 3.x → OkHttp → OTLP Exporter 链路已存在于运行时，即使移除 `opentelemetry-extension-kotlin`，kotlin-stdlib 仍然会被带入 JAR
+  - **有破坏 Kotlin 用户 trace 链路的风险**：移除后 Kotlin 协程的 context 传播失效，导致 Kotlin/Ktor 用户的分布式 trace 断链
+  - 关联模块 `instrumentation:opentelemetry-extension-kotlin-1.0` 提供桥接插桩，移除需同步处理
+
 ---
 
 ## 执行原则
