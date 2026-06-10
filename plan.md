@@ -123,7 +123,31 @@
 - 丢失：AWS/GCP/Azure/CloudFoundry 的自动资源属性探测（cloud.provider、cloud.region、instance.id 等）
 - 不影响：trace/metrics/logs 的收集和导出
 - 不影响：本地资源属性（host、process、container、os）
-- 预计减少约 **2-3MB**
+
+---
+
+## 第6步：移除 Prometheus Exporter + Protobuf [✅ 已完成]
+
+### 变更
+
+- 移除 `javaagent-tooling/build.gradle.kts` 中的 `opentelemetry-exporter-prometheus` 依赖
+- `protobuf-java:4.34.0` 作为 Prometheus exporter 的传递依赖随之移除
+- Prometheus exporter 通过 SPI 自动注册，移除依赖即自动不可用，无需额外代码修改
+
+### 体积对比
+
+| | 体积 |
+|---|---|
+| 移除前 | 18.5 MB |
+| 移除后 | 16.3 MB |
+| **减少** | **2.2 MB（11.9%）** |
+
+### 影响评估
+
+- `OTEL_METRICS_EXPORTER=otlp` → ✅ 正常工作
+- `OTEL_METRICS_EXPORTER=prometheus` → ❌ 不可用（exporter 不存在）
+- `OTEL_METRICS_EXPORTER=none` → ✅ 正常
+- OTLP trace/metrics/logs 导出完全不受影响
 
 ---
 
@@ -131,17 +155,10 @@
 
 ### 声明式配置（Declarative Config）
 
-- 依赖：Jackson-databind + SnakeYAML + declarative-config SDK，约 ~2.5MB
+- 依赖：Jackson-databind + SnakeYAML + declarative-config SDK
 - 当前用户使用环境变量配置，未使用 YAML 文件
 - 删除后退回到纯环境变量/系统属性配置方式
 - 所有功能不丢失，只是配置方式改变
-
-### Prometheus Exporter + Protobuf
-
-- 依赖：`opentelemetry-exporter-prometheus` → `protobuf-java:4.34.0`，约 ~5MB
-- 当前用户使用 OTLP 推送模式（`OTEL_TRACES_EXPORTER=otlp`），未使用 Prometheus pull 模式
-- 删除后不支持 Prometheus /metrics 端点暴露
-- OTLP trace/metrics/logs 导出完全不受影响
 
 ---
 

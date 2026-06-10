@@ -38,7 +38,7 @@ dependencies {
   implementation("io.opentelemetry:opentelemetry-exporter-otlp")
   implementation("io.opentelemetry:opentelemetry-exporter-logging-otlp")
 
-  implementation("io.opentelemetry:opentelemetry-exporter-prometheus")
+  // Prometheus exporter 已移除，protobuf-java 随之移除
   implementation("io.opentelemetry:opentelemetry-exporter-zipkin")
 
   implementation("io.opentelemetry:opentelemetry-sdk-extension-jaeger-remote-sampler")
