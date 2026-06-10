@@ -159,18 +159,21 @@
 - `opentelemetry-exporter-zipkin`（含传递依赖 zipkin-reporter、zipkin-sender-okhttp3）
 - `opentelemetry-sdk-extension-jaeger-remote-sampler`
 - `opentelemetry-aws-xray-propagator`
-- `opentelemetry-baggage-processor`
 - `opentelemetry-contrib-samplers`
 
-从 `spring-boot-starter/build.gradle.kts` 移除：
-- `opentelemetry-baggage-processor`
-- `opentelemetry-contrib-samplers`
+从 `spring-boot-autoconfigure/build.gradle.kts` 移除 xray-propagator 和 zipkin 的 compileOnly/testImplementation。
 
-从 `dependencyManagement/build.gradle.kts` 移除对应版本约束。
+从 `settings.gradle.kts` 移除 `zipkin-spring-boot-starter`。
+
+从 `dependencyManagement/build.gradle.kts` 移除 xray-propagator、contrib-samplers 版本约束。
 
 ### 代码变更
 
 - `RemappingUrlConnection.java` — 移除 AWS X-Ray shading 规则
+
+### 保留（有测试依赖）
+
+- **baggage-processor**：`testing-common` 的 `LibraryTestRunner` 使用 `BaggageSpanProcessor` 将 baggage 数据附加到 span 上用于测试验证，不可移除。
 
 ### 体积对比
 
