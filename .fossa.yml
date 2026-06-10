@@ -72,9 +72,6 @@ targets:
       target: ':instrumentation:http-url-connection:javaagent'
     - type: gradle
       path: ./
-      target: ':instrumentation:iceberg-1.8:library'
-    - type: gradle
-      path: ./
       target: ':instrumentation:java-http-client:javaagent'
     - type: gradle
       path: ./
@@ -97,9 +94,6 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:jdbc:library'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:jodd-http-4.2:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:methods:javaagent'
@@ -178,12 +172,6 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:clickhouse:clickhouse-client-v2-0.8:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:dropwizard:dropwizard-metrics-4.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:dropwizard:dropwizard-views-0.7:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:hibernate:hibernate-4.0:javaagent'
