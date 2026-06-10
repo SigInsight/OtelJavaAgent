@@ -6,267 +6,171 @@
 
 * [项目简介](#项目简介)
 * [快速开始](#快速开始)
-* [配置 Agent](#配置-agent)
-* [支持的库、框架与应用服务器](#支持的库框架与应用服务器)
-* [创建 Agent 扩展](#创建-agent-扩展)
-* [手动埋点](#手动埋点)
-* [Logger MDC 自动注入](#logger-mdc-自动注入)
-* [问题排查](#问题排查)
-* [参与贡献](#参与贡献)
+* [构建体系](#构建体系)
 * [手工构建与打包](#手工构建与打包)
+* [支持的库与框架](#支持的库与框架)
+* [配置与扩展](#配置与扩展)
 
 ## 项目简介
 
 本项目提供一个 Java Agent JAR，可以附加到任意 Java 8 及以上应用上，动态注入字节码，从大量常见库和框架中采集遥测数据。
-这些遥测数据可以导出为多种格式。
-你也可以通过命令行参数或环境变量配置 agent 和 exporter。
-最终效果是不需要修改业务代码，就可以从 Java 应用中采集遥测数据。
+最终效果是不需要修改业务代码，就可以从 Java 应用中采集 traces、metrics 和 logs。
 
-本仓库也会发布若干库的独立 instrumentation，并且还在持续增加。
-如果你更倾向于直接使用这些独立 instrumentation，而不是使用完整 Java agent，可以查看 [Supported Libraries](docs/supported-libraries.md#libraries--frameworks) 中的 standalone library instrumentation 列。
+本仓库也会发布若干库的独立 instrumentation，可以不依赖完整 Agent 直接使用。
 
 ## 快速开始
 
-你可以下载
-[最新版本](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar)。
-
-这个发行包同时包含：
-
-- instrumentation agent
-- 所有已支持库的自动注入逻辑
-- 所有可用的数据 exporter
-
-它提供的是开箱即用的自动化体验。
-
-通过 JVM 的 `-javaagent` 参数启用该 agent：
-
-```bash
-java -javaagent:path/to/opentelemetry-javaagent.jar \
-     -jar myapp.jar
-```
-
-默认情况下，OpenTelemetry Java agent 使用 [OTLP exporter](https://github.com/open-telemetry/opentelemetry-java/tree/main/exporters/otlp)，并把数据发送到本地 `http://localhost:4318` 上的 [OpenTelemetry collector](https://github.com/open-telemetry/opentelemetry-collector/blob/main/receiver/otlpreceiver/README.md)。
-
-配置参数可以通过 Java system properties（`-D` 参数）或环境变量传入。完整配置项请参考 [configuration documentation][config-agent]。例如：
+下载 [最新版本](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar)，通过 `-javaagent` 参数启用：
 
 ```bash
 java -javaagent:path/to/opentelemetry-javaagent.jar \
      -Dotel.resource.attributes=service.name=your-service-name \
-     -Dotel.traces.exporter=zipkin \
      -jar myapp.jar
 ```
 
-## 配置 Agent
+默认使用 [OTLP exporter](https://github.com/open-telemetry/opentelemetry-java/tree/main/exporters/otlp)，发送到 `http://localhost:4318`。
+配置参数可通过 `-D` 参数或环境变量传入，详见 [agent configuration](https://opentelemetry.io/docs/zero-code/java/agent/configuration/)。
 
-这个 agent 的可配置项很多。你可以根据需要调整它的行为，例如：
+## 构建体系
 
-- exporter 类型
-- exporter 配置（例如上报地址）
-- trace context 传播头
-- 以及其他大量运行参数
+### 分层架构
 
-详细的 agent 配置项请参考 [agent configuration docs][config-agent]。
+```
+Layer 0  dependencyManagement        所有第三方依赖版本集中管理（BOM）
+         │
+Layer 1  instrumentation-api         核心插桩 API，所有模块依赖
+         instrumentation-api-incubator  实验性 API（SQL 解析器等）
+         instrumentation-annotations    @WithSpan 等注解
+         │
+Layer 2  javaagent-bootstrap          注入 bootstrap classloader 的类
+         javaagent-extension-api       Agent 扩展 SPI
+         muzzle                        字节码安全校验（版本兼容性）
+         javaagent-tooling             Agent 主引擎（classloader 管理、类型匹配）
+         javaagent-internal-logging-*  内部日志（SLF4J 重定位）
+         sdk-autoconfigure-support     SDK 自动配置
+         declarative-config-bridge     声明式配置桥接
+         │
+Layer 3  opentelemetry-*-shaded-for-instrumenting   OTel API 版本屏蔽（保留 1.0 + 1.57 + 1.59）
+         │
+Layer 4  :instrumentation:*:javaagent   各框架的插桩实现（100+ 子模块）
+         :instrumentation:*:library     独立 library 插桩（不依赖 agent）
+         :instrumentation:*:bootstrap   bootstrap classloader 代码
+         │
+Layer 5  :javaagent                   收集所有模块 → shadowJar → 最终 Agent JAR
+```
 
-额外的 SDK 配置环境变量和 system properties，请参考 [SDK configuration docs][config-sdk]。
+### Agent JAR 组装管线
 
-注意：配置参数名未来仍可能变化。使用新版本时，建议回到这里重新确认。
-如果你发现 bug 或异常行为，请提交 issue：
-<https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues>
+```
+各 :instrumentation:X:javaagent 模块（各自独立编译 + shade + muzzle 校验）
+         │
+         ▼
+:javaagent 模块动态扫描所有 instrumentation 子项目
+  ├── bootstrapLibs    ← servlet-common, jdbc, executors 等基础模块
+  ├── baseJavaagentLibs ← tooling, muzzle, internal, logging 等
+  └── javaagentLibs    ← 所有 javaagent-instrumentation 插件的模块
+         │
+         ▼
+三阶段 Shadow:
+  1. buildBootstrapLibs          → bootstrapLibs.jar
+  2. relocateBaseJavaagentLibs   → baseJavaagentLibs-relocated.jar
+  3. relocateJavaagentLibs       → javaagentLibs-relocated.jar
+         │
+         ▼
+shadowJar → opentelemetry-javaagent.jar
+  ├── 根目录:    bootstrap 类（应用 classloader 可见）
+  └── inst/:     agent 类（.classdata 后缀，按需加载）
+```
 
-## 支持的库、框架与应用服务器
+### Shadow Jar 使用清单
 
-项目开箱即用地支持大量 [库与框架](docs/supported-libraries.md#libraries--frameworks)，以及主流 [应用服务器](docs/supported-libraries.md#application-servers)。
+| 模块 | 作用 |
+|------|------|
+| `:javaagent` | 最终产物，三阶段 shadow 合并所有模块 |
+| `:javaagent-internal-logging-simple` | SLF4J → `io.opentelemetry.javaagent.slf4j` |
+| `:opentelemetry-api-shaded-for-instrumenting` | OTel API 版本 shade（latest + v1.57 + v1.59） |
+| `:opentelemetry-instrumentation-api-shaded-for-instrumenting` | Instrumentation API shade |
+| `:testing:dependencies-shaded-for-testing` | 测试依赖隔离（Armeria, Netty, Jackson 等） |
+| `:testing:agent-for-testing` | 测试用 Agent JAR |
+| 每个 `:instrumentation:X:javaagent` | OTel API → shaded, Logger → PatchLogger |
+| `:instrumentation:jdbc:library` | Library 级 shade |
+| `:instrumentation:spring:spring-boot-autoconfigure` | Spring Boot 自动配置 shade |
 
-完整清单请查看 [supported-libraries.md](docs/supported-libraries.md)，其中也包含：
+### 测试层级
 
-- 被禁用的 instrumentation
-- 如何关闭不需要的 instrumentation
+| 模块 | 作用 |
+|------|------|
+| `testing-common` | 单元测试工具（JUnit 5, AssertJ, Mockito） |
+| `testing:dependencies-shaded-for-testing` | Shade 测试依赖避免冲突 |
+| `testing:agent-for-testing` | 提供测试用 Agent JAR |
+| `testing:agent-exporter` | 收集 trace/span 用于断言 |
+| `smoke-tests` | Docker + Testcontainers 集成测试 |
+| `benchmark-overhead-jmh` | JMH 性能基准测试 |
 
-相关说明见：[disabled instrumentation](docs/supported-libraries.md#disabled-instrumentations) 和 [suppress unwanted instrumentation][suppress]。
+### Convention 插件链
 
-## 创建 Agent 扩展
+每个 `:instrumentation:X:javaagent` 模块经过的插件链：
 
-[Extensions](examples/extension/README.md) 可以在不单独维护一个发行版、也不 fork 本仓库的前提下，为 agent 增加功能。
-例如你可以新增：
+```
+otel.dsl-conventions                      定义 otelProps 扩展
+  └→ otel.java-conventions                java-library, errorprone, dependencyManagement
+       └→ io...instrumentation.base        library/testLibrary 配置, 版本文件生成
+            └→ io...javaagent-testing      shadow 插件, -javaagent 测试配置
+                 └→ io...javaagent-instrumentation  muzzle 校验
+                      └→ otel.javaagent-instrumentation  发布, archivesName
+```
 
-- 自定义 sampler
-- 自定义 span exporter
-- 新的默认配置
+### 其他模块
 
-并把这些内容打进同一个 agent jar 中。
-
-## 创建 Agent 发行版
-
-[Distribution](examples/distro/README.md) 提供了如何创建单独发行版的说明，作为一组扩展 OpenTelemetry Java instrumentation agent 功能的示例。
-它也展示了如何在加入自定义功能后重新打包 agent。
-
-对大多数用户来说，更推荐使用 [Agent 扩展](#创建-agent-扩展)，因为方式更简单，而且不需要在每次 OpenTelemetry Java agent 发布新版本后都重新构建。
-
-## 手动埋点
-
-对大多数用户而言，开箱即用的自动注入已经足够，不需要再做额外工作。
-但有时你可能仍然希望：
-
-- 给自动生成的 span 增加额外属性
-- 为你自己的业务代码手动创建 span
-
-详细说明见 [Manual instrumentation][manual]。
-
-## Logger MDC 自动注入
-
-你可以把 trace ID、span ID 等链路信息自动注入到应用日志中。
-详见 [Logger MDC auto-instrumentation](docs/logger-mdc-instrumentation.md)。
-
-## 问题排查
-
-如需打开 agent 内部调试日志，可添加：
-
-`-Dotel.javaagent.debug=true`
-
-注意：调试日志非常冗长，只应在排查问题时开启。
-开启后会对应用性能产生负面影响。
-
-## 参与贡献
-
-参考 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-### Maintainers
-
-- [Lauri Tulmin](https://github.com/laurit), Splunk
-- [Trask Stalnaker](https://github.com/trask), Microsoft
-
-Maintainer 角色说明见：
-<https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer>
-
-### Approvers
-
-- [Gregor Zeitlinger](https://github.com/zeitlinger), Grafana Labs
-- [Jack Berg](https://github.com/jack-berg), Grafana Labs
-- [Jason Plumb](https://github.com/breedx-splk), Splunk
-- [Jay DeLuca](https://github.com/jaydeluca), Grafana Labs
-- [Jean Bisutti](https://github.com/jeanbisutti), Microsoft
-- [John Watson](https://github.com/jkwatson), Sublime Security
-- [Jonas Kunz](https://github.com/JonasKunz), Elastic
-- [Steve Rao](https://github.com/steverao), Alibaba
-- [Sylvain Juge](https://github.com/SylvainJuge), Elastic
-
-Approver 角色说明见：
-<https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver>
-
-### Emeritus
-
-- [Mateusz Rzeszutek](https://github.com/mateuszrzeszutek), Maintainer
-- [Nikita Salnikov-Tarnovski](https://github.com/iNikem), Maintainer
-- [Tyler Benson](https://github.com/tylerbenson), Maintainer
-
-Emeritus 角色说明见：
-<https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#emeritus-maintainerapprovertriager>
-
-### 感谢所有贡献者
-
-<a href="https://github.com/open-telemetry/opentelemetry-java-instrumentation/graphs/contributors">
-  <img alt="Repo contributors" src="https://contrib.rocks/image?repo=open-telemetry/opentelemetry-java-instrumentation" />
-</a>
+| 模块 | 作用 |
+|------|------|
+| `bom` / `bom-alpha` | 发布用 BOM，不影响构建 |
+| `custom-checks` | Error Prone 自定义检查（编译期校验） |
+| `instrumentation-docs` | 文档生成工具 |
+| `conventions` | Composite build，提供所有 Gradle convention 插件 |
+| `gradle-plugins` | Muzzle generation/check 插件 |
 
 ## 手工构建与打包
 
-如果你要从当前工作区手动清理构建，并一路编译到最终可挂载 JVM 的主 agent 包，可以按下面顺序执行。
-
-### 1. 清理历史构建产物
-
-```bash
-./gradlew clean
-```
-
-这一步会清理各模块下的 `build/` 目录，重点包括：
-
-- `javaagent/build/`
-- `javaagent-bootstrap/build/`
-- `javaagent-tooling/build/`
-- 各 `instrumentation/**/build/`
-
-### 2. 先完成主源码编译
-
-```bash
-./gradlew compileJava compileTestJava
-```
-
-如果你只想验证主 agent 模块相关内容，也可以单独执行：
-
-```bash
-./gradlew :javaagent:compileJava
-```
-
-编译阶段的主要中间产物位置：
-
-- `javaagent/build/classes/`：`javaagent` 模块编译后的 class 文件
-- `javaagent/build/tmp/`：`javaagent` 模块任务的临时文件
-- `*/build/classes/`：其他模块编译后的 class 文件
-- `*/build/tmp/`：其他模块的临时文件
-
-### 3. 生成最终主 agent 包
-
-```bash
-./gradlew :javaagent:shadowJar
-```
-
-这个任务会先生成并消费几个中间 jar，然后再组装最终 agent：
-
-- `javaagent/build/libs/bootstrapLibs.jar`
-  作用：bootstrap 相关依赖的聚合包
-- `javaagent/build/libs/javaagentLibs-relocated.jar`
-  作用：主 agent 依赖 relocate 后的聚合包
-- `javaagent/build/libs/baseJavaagentLibs-relocated.jar`
-  作用：`base` 变体使用的 relocate 聚合包
-
-### 4. 查看最终产物
-
-最终可直接通过 `-javaagent:` 挂载到 JVM 的主包位于：
-
-- `javaagent/build/libs/opentelemetry-javaagent-2.29.0-alpha-SNAPSHOT.jar`
-
-这是 `:javaagent:shadowJar` 的输出，manifest 中包含：
-
-- `Main-Class: io.opentelemetry.javaagent.OpenTelemetryAgent`
-- `Agent-Class: io.opentelemetry.javaagent.OpenTelemetryAgent`
-- `Premain-Class: io.opentelemetry.javaagent.OpenTelemetryAgent`
-
-因此它才是最终主 agent 包。
-
-同目录下还可能出现两个容易混淆的产物：
-
-- `javaagent/build/libs/opentelemetry-javaagent-2.29.0-alpha-SNAPSHOT-base.jar`
-  这是 `baseJavaagentJar` 产物，只包含 agent machinery 和必要 instrumentation，不是默认完整包。
-- `javaagent/build/libs/opentelemetry-javaagent-2.29.0-alpha-SNAPSHOT-dontuse.jar`
-  这是普通 `jar` 任务输出，构建脚本明确标注为不可直接使用。
-
-### 5. 一条命令从 clean 走到最终主包
-
-如果你希望一步完成清理、编译和最终打包，可以直接执行：
+### 一键构建
 
 ```bash
 ./gradlew clean :javaagent:shadowJar
 ```
 
-如果你还希望同时产出 `base` 变体，可执行：
+最终产物在 `javaagent/build/libs/opentelemetry-javaagent-*.jar`。
+
+同目录下还有两个变体：
+- `*-base.jar` — 仅含 agent machinery，用于自定义发行版
+- `*-dontuse.jar` — 普通 jar 输出，不可直接使用
+
+### 中间产物
+
+| 文件 | 作用 |
+|------|------|
+| `bootstrapLibs.jar` | bootstrap 依赖聚合包 |
+| `javaagentLibs-relocated.jar` | 主 agent 依赖 relocate 后的聚合包 |
+| `baseJavaagentLibs-relocated.jar` | base 变体的 relocate 聚合包 |
+
+### 使用
 
 ```bash
-./gradlew clean :javaagent:assemble
-```
-
-因为 `:javaagent:assemble` 依赖：
-
-- `shadowJar`
-- `baseJavaagentJar`
-
-### 6. 使用示例
-
-```bash
-java -javaagent:/absolute/path/to/javaagent/build/libs/opentelemetry-javaagent-2.29.0-alpha-SNAPSHOT.jar \
+java -javaagent:path/to/opentelemetry-javaagent.jar \
+     -Dotel.resource.attributes=service.name=your-service-name \
      -jar myapp.jar
 ```
 
-[config-agent]: https://opentelemetry.io/docs/zero-code/java/agent/configuration/
-[config-sdk]: https://opentelemetry.io/docs/languages/java/configuration/
-[manual]: https://opentelemetry.io/docs/languages/java/instrumentation/#manual-instrumentation
-[suppress]: https://opentelemetry.io/docs/zero-code/java/agent/disable/
+## 支持的库与框架
+
+项目开箱即用地支持大量 [库与框架](docs/supported-libraries.md#libraries--frameworks)。
+完整清单、禁用方法见 [supported-libraries.md](docs/supported-libraries.md)。
+
+## 配置与扩展
+
+- **Agent 配置**: https://opentelemetry.io/docs/zero-code/java/agent/configuration/
+- **SDK 配置**: https://opentelemetry.io/docs/languages/java/configuration/
+- **创建扩展**: [examples/extension/README.md](examples/extension/README.md)
+- **创建发行版**: [examples/distro/README.md](examples/distro/README.md)
+- **手动埋点**: https://opentelemetry.io/docs/languages/java/instrumentation/#manual-instrumentation
+- **Logger MDC 自动注入**: [docs/logger-mdc-instrumentation.md](docs/logger-mdc-instrumentation.md)
+- **调试日志**: `-Dotel.javaagent.debug=true`（非常冗长，仅排查问题时开启）
