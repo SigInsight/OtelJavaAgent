@@ -75,10 +75,10 @@ dependencies {
   implementation(project(":sdk-autoconfigure-support"))
   implementation(project(":declarative-config-bridge"))
   compileOnly("io.opentelemetry:opentelemetry-extension-trace-propagators")
-  compileOnly("io.opentelemetry.contrib:opentelemetry-aws-xray-propagator")
+  // xray-propagator 已移除
   compileOnly("io.opentelemetry:opentelemetry-exporter-logging")
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp")
-  compileOnly("io.opentelemetry:opentelemetry-exporter-zipkin")
+  // zipkin exporter 已移除
   compileOnly(project(":instrumentation-annotations"))
 
   compileOnly(project(":instrumentation:resources:library"))
@@ -99,10 +99,10 @@ dependencies {
   testImplementation(project(":instrumentation:resources:library"))
   testImplementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
   testImplementation("io.opentelemetry:opentelemetry-extension-trace-propagators")
-  testImplementation("io.opentelemetry.contrib:opentelemetry-aws-xray-propagator")
+  // xray-propagator 已移除
   testImplementation("io.opentelemetry:opentelemetry-exporter-logging")
   testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
-  testImplementation("io.opentelemetry:opentelemetry-exporter-zipkin")
+  // zipkin exporter 已移除
   testImplementation(project(":instrumentation-annotations"))
   testImplementation(project(":instrumentation:spring:spring-boot-autoconfigure:testing"))
 

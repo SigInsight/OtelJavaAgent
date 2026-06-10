@@ -355,7 +355,7 @@ include(":instrumentation:spring:spring-webmvc:spring-webmvc-6.0:library")
 include(":instrumentation:spring:spring-webmvc:spring-webmvc-common-3.1:javaagent")
 include(":instrumentation:spring:spring-webmvc:spring-webmvc-common-3.1:testing")
 include(":instrumentation:spring:starters:spring-boot-starter")
-include(":instrumentation:spring:starters:zipkin-spring-boot-starter")
+// zipkin-spring-boot-starter 已随 zipkin exporter 一起移除
 include(":instrumentation:tomcat:tomcat-10.0:javaagent")
 include(":instrumentation:tomcat:tomcat-common-7.0:javaagent")
 
