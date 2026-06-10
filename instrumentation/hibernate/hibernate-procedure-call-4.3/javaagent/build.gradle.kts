@@ -19,7 +19,6 @@ dependencies {
   testInstrumentation(project(":instrumentation:jdbc:javaagent"))
   testImplementation(project(":instrumentation:hibernate:testing"))
   // Added to ensure cross compatibility:
-  testInstrumentation(project(":instrumentation:hibernate:hibernate-3.3:javaagent"))
   testInstrumentation(project(":instrumentation:hibernate:hibernate-4.0:javaagent"))
 
   testLibrary("org.hibernate:hibernate-entitymanager:4.3.0.Final")

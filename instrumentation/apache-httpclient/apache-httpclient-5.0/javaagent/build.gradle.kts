@@ -16,7 +16,6 @@ dependencies {
   // https://issues.apache.org/jira/browse/HTTPCORE-653
   testImplementation("org.apache.httpcomponents.core5:httpcore5:5.0.3")
 
-  testInstrumentation(project(":instrumentation:apache-httpclient:apache-httpclient-2.0:javaagent"))
   testInstrumentation(project(":instrumentation:apache-httpclient:apache-httpclient-4.0:javaagent"))
 }
 

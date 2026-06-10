@@ -141,9 +141,6 @@ targets:
       target: ':instrumentation:spring:spring-boot-autoconfigure'
     - type: gradle
       path: ./
-      target: ':instrumentation:apache-httpclient:apache-httpclient-2.0:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:apache-httpclient:apache-httpclient-4.0:javaagent'
     - type: gradle
       path: ./
@@ -189,9 +186,6 @@ targets:
       target: ':instrumentation:dropwizard:dropwizard-views-0.7:javaagent'
     - type: gradle
       path: ./
-      target: ':instrumentation:hibernate:hibernate-3.3:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:hibernate:hibernate-4.0:javaagent'
     - type: gradle
       path: ./
@@ -234,9 +228,6 @@ targets:
       target: ':instrumentation:jboss-logmanager:jboss-logmanager-mdc-1.1:javaagent'
     - type: gradle
       path: ./
-      target: ':instrumentation:jedis:jedis-1.4:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:jedis:jedis-3.0:javaagent'
     - type: gradle
       path: ./
@@ -247,9 +238,6 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:ktor:ktor-1.0:library'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:lettuce:lettuce-4.0:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:lettuce:lettuce-5.0:javaagent'
@@ -288,9 +276,6 @@ targets:
       target: ':instrumentation:logback:logback-mdc-1.0:library'
     - type: gradle
       path: ./
-      target: ':instrumentation:mongo:mongo-3.1:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:mongo:mongo-3.1:library'
     - type: gradle
       path: ./
@@ -301,9 +286,6 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:mongo:mongo-async-3.3:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:netty:netty-3.8:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:netty:netty-4.0:javaagent'
@@ -352,9 +334,6 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:reactor:reactor-3.4:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:redisson:redisson-3.0:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:redisson:redisson-3.17:javaagent'

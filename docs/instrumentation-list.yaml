@@ -54,55 +54,6 @@ libraries:
       attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
     type: list
     default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
-- name: apache-httpclient-2.0
-  display_name: Apache HttpClient
-  description: This instrumentation enables HTTP client spans and HTTP client metrics
-    for versions 2 and 3 of the Apache HttpClient.
-  semantic_conventions:
-  - HTTP_CLIENT_SPANS
-  - HTTP_CLIENT_METRICS
-  library_link: https://hc.apache.org/index.html
-  source_path: instrumentation/apache-httpclient/apache-httpclient-2.0
-  scope:
-    name: io.opentelemetry.apache-httpclient-2.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - commons-httpclient:commons-httpclient:[2.0,4.0)
-  configurations:
-  - name: otel.instrumentation.http.known-methods
-    declarative_name: java.common.http.known_methods
-    description: |
-      Configures the instrumentation to recognize an alternative set of HTTP request methods. All other methods will be treated as `_OTHER`.
-    type: list
-    default: CONNECT,DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT,TRACE
-  - name: otel.instrumentation.http.client.capture-request-headers
-    declarative_name: general.http.client.request_captured_headers
-    description: List of HTTP request headers to capture in HTTP client telemetry.
-    type: list
-    default: ''
-  - name: otel.instrumentation.http.client.capture-response-headers
-    declarative_name: general.http.client.response_captured_headers
-    description: List of HTTP response headers to capture in HTTP client telemetry.
-    type: list
-    default: ''
-  - name: otel.instrumentation.common.peer-service-mapping
-    declarative_name: java.common.peer_service_mapping
-    description: Used to specify a mapping from host names or IP addresses to peer
-      services.
-    type: map
-    default: ''
-  - name: otel.instrumentation.http.client.emit-experimental-telemetry
-    declarative_name: java.common.http.client.emit_experimental_telemetry/development
-    description: |
-      Enable the capture of experimental HTTP client telemetry. Adds the `http.request.body.size` and `http.response.body.size` attributes to spans, and records `http.client.request.size` and `http.client.response.size` metrics.
-    type: boolean
-    default: false
-  - name: otel.instrumentation.sanitization.url.experimental.sensitive-query-parameters
-    declarative_name: general.sanitization.url.sensitive_query_parameters/development
-    description: List of URL query parameter names whose values are redacted in URL
-      attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
-    type: list
-    default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
 - name: apache-httpclient-4.0
   display_name: Apache HttpClient
   description: This instrumentation enables HTTP client spans and HTTP client metrics
@@ -596,38 +547,10 @@ libraries:
       attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
     type: list
     default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
-- name: hibernate-3.3
-  display_name: Hibernate
-  description: This instrumentation enables spans for Hibernate ORM operations.
-  library_link: https://hibernate.org/
-  source_path: instrumentation/hibernate/hibernate-3.3
-  scope:
-    name: io.opentelemetry.hibernate-3.3
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.hibernate:hibernate-core:[3.3.0.GA,4.0.0.Final)
-  configurations:
-  - name: otel.instrumentation.hibernate.experimental-span-attributes
-    declarative_name: java.hibernate.experimental_span_attributes/development
-    description: Enables the experimental `hibernate.session_id` span attribute.
-    type: boolean
-    default: false
 - name: hibernate-4.0
-  display_name: Hibernate
-  description: This instrumentation enables spans for Hibernate ORM operations.
-  library_link: https://hibernate.org/
   source_path: instrumentation/hibernate/hibernate-4.0
   scope:
     name: io.opentelemetry.hibernate-4.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.hibernate:hibernate-core:[4.0.0.Final,6)
-  configurations:
-  - name: otel.instrumentation.hibernate.experimental-span-attributes
-    declarative_name: java.hibernate.experimental_span_attributes/development
-    description: Enables the experimental `hibernate.session_id` span attribute.
-    type: boolean
-    default: false
 - name: hibernate-6.0
   display_name: Hibernate
   description: This instrumentation enables spans for Hibernate ORM operations.
@@ -940,32 +863,6 @@ libraries:
     description: Enables instrumentation of JDBC datasource connections.
     type: boolean
     default: false
-- name: jedis-1.4
-  display_name: Jedis
-  description: This instrumentation enables database client spans and database client
-    metrics for Jedis Redis operations.
-  semantic_conventions:
-  - DATABASE_CLIENT_SPANS
-  - DATABASE_CLIENT_METRICS
-  library_link: https://github.com/redis/jedis
-  source_path: instrumentation/jedis/jedis-1.4
-  scope:
-    name: io.opentelemetry.jedis-1.4
-  has_javaagent: true
-  javaagent_target_versions:
-  - redis.clients:jedis:[1.4.0,3.0.0)
-  configurations:
-  - name: otel.instrumentation.common.db.query-sanitization.enabled
-    declarative_name: java.common.db.query_sanitization.enabled
-    description: Enables query sanitization for database queries.
-    type: boolean
-    default: true
-  - name: otel.instrumentation.common.peer-service-mapping
-    declarative_name: java.common.peer_service_mapping
-    description: Used to specify a mapping from host names or IP addresses to peer
-      services.
-    type: map
-    default: ''
 - name: jedis-3.0
   display_name: Jedis
   description: This instrumentation enables database client spans and database client
@@ -1075,37 +972,6 @@ libraries:
   scope:
     name: io.opentelemetry.ktor-1.0
   has_standalone_library: true
-- name: lettuce-4.0
-  display_name: Lettuce
-  description: |
-    This instrumentation enables database client spans and database client metrics for the Lettuce Redis client.
-  semantic_conventions:
-  - DATABASE_CLIENT_SPANS
-  - DATABASE_CLIENT_METRICS
-  library_link: https://github.com/redis/lettuce
-  source_path: instrumentation/lettuce/lettuce-4.0
-  scope:
-    name: io.opentelemetry.lettuce-4.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - biz.paluch.redis:lettuce:[4.0.Final,)
-  configurations:
-  - name: otel.instrumentation.lettuce.connection-telemetry.enabled
-    declarative_name: java.lettuce.connection_telemetry.enabled
-    description: Enables connection telemetry spans for Redis connections.
-    type: boolean
-    default: false
-  - name: otel.instrumentation.lettuce.experimental-span-attributes
-    declarative_name: java.lettuce.experimental_span_attributes/development
-    description: Enables experimental span attribute `lettuce.command.cancelled`.
-    type: boolean
-    default: false
-  - name: otel.instrumentation.common.peer-service-mapping
-    declarative_name: java.common.peer_service_mapping
-    description: Used to specify a mapping from host names or IP addresses to peer
-      services.
-    type: map
-    default: ''
 - name: lettuce-5.0
   display_name: Lettuce
   description: |
@@ -1506,9 +1372,6 @@ libraries:
   scope:
     name: io.opentelemetry.mongo-3.1
   has_standalone_library: true
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.mongodb:mongo-java-driver:[3.1,)
   configurations:
   - name: otel.instrumentation.mongo.query-sanitization.enabled
     declarative_name: java.mongo.query_sanitization.enabled
@@ -1611,73 +1474,6 @@ libraries:
   has_javaagent: true
   javaagent_target_versions:
   - org.mybatis:mybatis:[3.2.0,)
-- name: netty-3.8
-  display_name: Netty HTTP codec
-  description: |
-    This instrumentation enables HTTP client spans, HTTP client metrics, HTTP server spans, and HTTP server metrics for the Netty framework.
-  semantic_conventions:
-  - HTTP_CLIENT_SPANS
-  - HTTP_CLIENT_METRICS
-  - HTTP_SERVER_SPANS
-  - HTTP_SERVER_METRICS
-  library_link: https://netty.io/
-  source_path: instrumentation/netty/netty-3.8
-  scope:
-    name: io.opentelemetry.netty-3.8
-  has_javaagent: true
-  javaagent_target_versions:
-  - io.netty:netty:[3.8.0.Final,4)
-  configurations:
-  - name: otel.instrumentation.http.known-methods
-    declarative_name: java.common.http.known_methods
-    description: |
-      Configures the instrumentation to recognize an alternative set of HTTP request methods. All other methods will be treated as `_OTHER`.
-    type: list
-    default: CONNECT,DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT,TRACE
-  - name: otel.instrumentation.http.client.capture-request-headers
-    declarative_name: general.http.client.request_captured_headers
-    description: List of HTTP request headers to capture in HTTP client telemetry.
-    type: list
-    default: ''
-  - name: otel.instrumentation.http.client.capture-response-headers
-    declarative_name: general.http.client.response_captured_headers
-    description: List of HTTP response headers to capture in HTTP client telemetry.
-    type: list
-    default: ''
-  - name: otel.instrumentation.common.peer-service-mapping
-    declarative_name: java.common.peer_service_mapping
-    description: Used to specify a mapping from host names or IP addresses to peer
-      services.
-    type: map
-    default: ''
-  - name: otel.instrumentation.http.client.emit-experimental-telemetry
-    declarative_name: java.common.http.client.emit_experimental_telemetry/development
-    description: |
-      Enable the capture of experimental HTTP client telemetry. Adds the `http.request.body.size` and `http.response.body.size` attributes to spans, and records `http.client.request.size` and `http.client.response.size` metrics.
-    type: boolean
-    default: false
-  - name: otel.instrumentation.http.server.capture-request-headers
-    declarative_name: general.http.server.request_captured_headers
-    description: List of HTTP request headers to capture in HTTP server telemetry.
-    type: list
-    default: ''
-  - name: otel.instrumentation.http.server.capture-response-headers
-    declarative_name: general.http.server.response_captured_headers
-    description: List of HTTP response headers to capture in HTTP server telemetry.
-    type: list
-    default: ''
-  - name: otel.instrumentation.http.server.emit-experimental-telemetry
-    declarative_name: java.common.http.server.emit_experimental_telemetry/development
-    description: |
-      Enable the capture of experimental HTTP server telemetry. Adds the `http.request.body.size` and `http.response.body.size` attributes to spans, and records `http.server.request.size` and `http.server.response.size` metrics.
-    type: boolean
-    default: false
-  - name: otel.instrumentation.sanitization.url.experimental.sensitive-query-parameters
-    declarative_name: general.sanitization.url.sensitive_query_parameters/development
-    description: List of URL query parameter names whose values are redacted in URL
-      attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
-    type: list
-    default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
 - name: netty-4.0
   display_name: Netty HTTP codec
   description: |
@@ -2099,20 +1895,6 @@ libraries:
       attributes. See https://opentelemetry.io/docs/specs/semconv/http/http-spans.
     type: list
     default: AWSAccessKeyId,Signature,sig,X-Goog-Signature
-- name: redisson-3.0
-  display_name: Redisson
-  description: This instrumentation enables database client spans and database client
-    metrics for Redisson Redis client operations.
-  semantic_conventions:
-  - DATABASE_CLIENT_SPANS
-  - DATABASE_CLIENT_METRICS
-  library_link: https://github.com/redisson/redisson
-  source_path: instrumentation/redisson/redisson-3.0
-  scope:
-    name: io.opentelemetry.redisson-3.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.redisson:redisson:[3.0.0,3.17.0)
 - name: redisson-3.17
   display_name: Redisson
   description: This instrumentation enables database client spans and database client
