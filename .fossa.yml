@@ -66,9 +66,6 @@ targets:
       target: ':instrumentation:external-annotations:javaagent'
     - type: gradle
       path: ./
-      target: ':instrumentation:google-http-client-1.19:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:http-url-connection:javaagent'
     - type: gradle
       path: ./
@@ -153,16 +150,7 @@ targets:
       target: ':instrumentation:armeria:armeria-1.3:library'
     - type: gradle
       path: ./
-      target: ':instrumentation:async-http-client:async-http-client-1.8:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:async-http-client:async-http-client-1.9:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:async-http-client:async-http-client-2.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:async-http-client:async-http-client-common-1.8:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:clickhouse:clickhouse-client-common-0.5:javaagent'
@@ -294,9 +282,6 @@ targets:
       target: ':instrumentation:netty:netty-common-4.0:library'
     - type: gradle
       path: ./
-      target: ':instrumentation:okhttp:okhttp-2.2:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:okhttp:okhttp-3.0:javaagent'
     - type: gradle
       path: ./
@@ -387,9 +372,6 @@ targets:
       target: ':instrumentation:spring:spring-security-config-6.0:library'
     - type: gradle
       path: ./
-      target: ':instrumentation:spring:spring-ws-2.0:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:spring:starters:spring-boot-starter'
     - type: gradle
       path: ./
@@ -400,15 +382,6 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:tomcat:tomcat-common-7.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-redis-client-4.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-rx-java-3.5:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-web-3.0:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:log4j:log4j-context-data:log4j-context-data-2.17:javaagent'
@@ -424,12 +397,6 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:reactor:reactor-netty:reactor-netty-1.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:spring:spring-cloud-gateway:spring-cloud-gateway-common:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:spring:spring-cloud-gateway:spring-cloud-gateway-webmvc-4.3:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:spring:spring-web:spring-web-3.1:library'
@@ -457,27 +424,6 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:spring:spring-webmvc:spring-webmvc-common-3.1:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-http-client:vertx-http-client-3.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-http-client:vertx-http-client-4.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-http-client:vertx-http-client-5.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-http-client:vertx-http-client-common-3.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-sql-client:vertx-sql-client-4.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-sql-client:vertx-sql-client-5.0:javaagent'
-    - type: gradle
-      path: ./
-      target: ':instrumentation:vertx:vertx-sql-client:vertx-sql-client-common-4.0:javaagent'
 
 experimental:
   gradle:

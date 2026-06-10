@@ -20,7 +20,6 @@ dependencies {
 
   testImplementation(project(":instrumentation:okhttp:okhttp-3.0:testing"))
 
-  testInstrumentation(project(":instrumentation:okhttp:okhttp-2.2:javaagent"))
 }
 
 testing {

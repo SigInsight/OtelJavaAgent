@@ -79,6 +79,23 @@
 
 ---
 
+## 第4步：小众 Web/HTTP 模块移除
+
+### 已删除
+
+- vertx 全族（web、http-client、redis-client、rx-java、sql-client 共 11 个模块）
+- spring-ws-2.0（SOAP 遗留协议）
+- spring-cloud-gateway（webmvc-4.3 + common，仅 Spring Cloud 网关场景）
+- okhttp-2.2（2014 年版本，okhttp 3.0 覆盖现代版本）
+- async-http-client-1.8 + 1.9 + common-1.8（极老版本，保留 2.0）
+- google-http-client-1.19（仅 Google API 生态）
+
+### 保留（有重要测试依赖）
+
+- **armeria-1.3**：虽然 Armeria 框架本身小众，但 `testing/dependencies-shaded-for-testing` 依赖 `armeria-junit5` 作为 HTTP 测试基础设施（WebClient、ServerExtension 等），几乎所有 HTTP 相关测试（servlet、spring-webmvc、spring-webflux、netty、reactor-netty、smoke-tests）都使用它。删除会导致测试体系崩溃。
+
+---
+
 ## 执行原则
 
 - 每步之后跑 `./gradlew compileJava` 验证
