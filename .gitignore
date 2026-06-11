@@ -68,3 +68,4 @@ build-scan.txt
 # Python #
 ##########
 .github/scripts/**/__pycache__/
+/.ai/
