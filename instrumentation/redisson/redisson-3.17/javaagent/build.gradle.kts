@@ -16,7 +16,6 @@ dependencies {
 
   implementation(project(":instrumentation:redisson:redisson-common-3.0:javaagent"))
 
-
   testImplementation(project(":instrumentation:redisson:redisson-common-3.0:testing"))
 }
 

@@ -195,5 +195,4 @@ class SpanParserTest {
         .extracting(TelemetryAttribute::getName)
         .containsExactly("my.operation");
   }
-
 }

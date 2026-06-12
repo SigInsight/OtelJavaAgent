@@ -14,7 +14,6 @@ public class TestImageVersions {
   // smoke-test-grpc
   public static final String GRPC_VERSION = "20251117.19445937433";
 
-
   // smoke-test-security-manager
   public static final String SECURITY_MANAGER_VERSION = "20251116.19402383852";
 

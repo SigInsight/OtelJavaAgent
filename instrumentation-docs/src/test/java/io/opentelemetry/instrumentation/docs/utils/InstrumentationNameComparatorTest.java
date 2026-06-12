@@ -76,8 +76,7 @@ class InstrumentationNameComparatorTest {
             .map(InstrumentationModule::getInstrumentationName)
             .toList();
 
-    assertThat(modules)
-        .containsExactly("lib-3.1", "lib-3.1.6", "lib-3.2", "lib-3.4");
+    assertThat(modules).containsExactly("lib-3.1", "lib-3.1.6", "lib-3.2", "lib-3.4");
   }
 
   @Test

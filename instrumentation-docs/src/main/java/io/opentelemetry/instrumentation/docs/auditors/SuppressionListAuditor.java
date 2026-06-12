@@ -30,8 +30,7 @@ public class SuppressionListAuditor implements DocumentationAuditor {
       "https://raw.githubusercontent.com/open-telemetry/opentelemetry.io/refs/heads/main/content/en/docs/zero-code/java/agent/disable.md";
 
   // Used for consolidating instrumentation groups where we override the key with the value
-  private static final Map<String, String> INSTRUMENTATION_DISABLE_OVERRIDES =
-      Map.of();
+  private static final Map<String, String> INSTRUMENTATION_DISABLE_OVERRIDES = Map.of();
 
   private static final List<String> INSTRUMENTATION_EXCLUSIONS =
       List.of("resources", "spring-boot-resources");

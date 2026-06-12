@@ -105,9 +105,7 @@ corresponding instrumentation name: {{% /config_option %}}
 
     var result = SuppressionListAuditor.parseDocumentationDisabledList(testFile);
     assertThat(result).hasSize(3);
-    assertThat(result)
-        .containsExactlyInAnyOrder(
-            "methods", "external-annotations", "axis2");
+    assertThat(result).containsExactlyInAnyOrder("methods", "external-annotations", "axis2");
   }
 
   @Test
@@ -132,8 +130,7 @@ libraries:
   @Test
   void testIdentifyMissingItems() {
     var documentationDisabledList = List.of("methods");
-    var instrumentationList =
-        List.of("methods", "axis2");
+    var instrumentationList = List.of("methods", "axis2");
 
     var missingItems =
         SuppressionListAuditor.identifyMissingItems(documentationDisabledList, instrumentationList);

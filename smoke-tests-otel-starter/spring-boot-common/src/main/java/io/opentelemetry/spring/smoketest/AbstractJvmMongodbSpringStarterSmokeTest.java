@@ -17,7 +17,9 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.mongodb.MongoDBContainer;
 
-/** Uses ApplicationContextRunner to keep Mongo starter assertions isolated from full app startup. */
+/**
+ * Uses ApplicationContextRunner to keep Mongo starter assertions isolated from full app startup.
+ */
 public abstract class AbstractJvmMongodbSpringStarterSmokeTest
     extends AbstractMongodbSpringStarterSmokeTest {
 
