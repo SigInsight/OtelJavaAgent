@@ -38,7 +38,13 @@ dependencies {
   implementation("io.opentelemetry:opentelemetry-exporter-otlp")
   implementation("io.opentelemetry:opentelemetry-exporter-logging-otlp")
 
-  // 已移除：zipkin exporter、jaeger-remote-sampler、aws-xray-propagator、baggage-processor、contrib-samplers
+  // baggage-processor: 实现 -Dotel.java.experimental.span-attributes.copy-from-baggage 机制，
+  // 把 baggage entries 拷贝到 span attributes。testing-common 的 LibraryTestRunner 和大量
+  // HTTP server / JDBC instrumentation 测试依赖它（如 java-http-server 的 extractSingleBaggage、
+  // jdbc 的 baggage 相关断言）。77c2d247 曾从 agent runtime 删除导致回归，故保留。
+  implementation("io.opentelemetry.contrib:opentelemetry-baggage-processor")
+
+  // 已移除：zipkin exporter、jaeger-remote-sampler、aws-xray-propagator、contrib-samplers
 
   api("net.bytebuddy:byte-buddy-dep")
   implementation("org.ow2.asm:asm-tree")
