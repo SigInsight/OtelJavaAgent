@@ -68,7 +68,7 @@ class SuppressionListAuditorTest {
 
       assertThat(result).isPresent();
       assertThat(result.get()).contains("Missing Disable List (1 item(s) missing):");
-      assertThat(result.get()).contains("- activej-http");
+      assertThat(result.get()).contains("- methods");
     }
   }
 
@@ -190,7 +190,6 @@ corresponding instrumentation name: {{% /config_option %}}
 
 | Library/Framework                                | Instrumentation name                        |
 | ------------------------------------------------ | ------------------------------------------- |
-| Additional methods tracing                       | `methods`                                   |
 """;
   }
 
