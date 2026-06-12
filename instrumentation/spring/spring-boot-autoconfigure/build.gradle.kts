@@ -158,14 +158,17 @@ testing {
         implementation(project(":instrumentation:logback:logback-appender-1.0:library"))
         implementation(project(":instrumentation:logback:logback-mdc-1.0:library"))
         // using the same versions as in the spring-boot-autoconfigure
+        // Spring Boot 3.2.4 配套 logback 1.4.14 / slf4j 2.0.12；3.2 的 LogbackLoggingSystem
+        // 引用 logback-core 1.4+ 才有的 SanityChecker，旧的 1.2.11 / 1.7.32 锁会 NoClassDefFoundError。
+        // ea4b523a 升 springBootVersion 到 3.2.4 时漏了这里。
         implementation("ch.qos.logback:logback-classic") {
           version {
-            strictly("1.2.11")
+            strictly("1.4.14")
           }
         }
         implementation("org.slf4j:slf4j-api") {
           version {
-            strictly("1.7.32")
+            strictly("2.0.12")
           }
         }
       }
