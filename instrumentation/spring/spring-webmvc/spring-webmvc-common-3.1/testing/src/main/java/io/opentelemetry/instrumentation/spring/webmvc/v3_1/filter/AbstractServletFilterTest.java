@@ -49,6 +49,12 @@ public abstract class AbstractServletFilterTest
     options.setHasResponseSpan(
         endpoint -> endpoint == REDIRECT || endpoint == ERROR || endpoint == NOT_FOUND);
     options.setTestPathParam(true);
+    // Spring Boot's BasicErrorController error dispatch is a container-internal nested dispatch
+    // (sendError -> forward to /error). After removing tomcat-7.0 testInstrumentation in bc4d02ea,
+    // the SERVER span end time is recorded at the servlet boundary instead of the outer
+    // Container.invoke, which can race with the inner BasicErrorController.error span end time at
+    // nanosecond precision. Aligned with BaseTomcatDispatchTest / WebFlux tests.
+    options.setVerifyServerSpanEndTime(false);
   }
 
   @Override
