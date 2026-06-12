@@ -407,7 +407,7 @@
 
 ## 执行原则
 
-- 每步之后跑 `./gradlew compileJava` 验证
+- 每步之后跑 `./gradlew compileJava` & `./gradlew check --rerun-tasks` 验证
 - 先删目录与 `settings.gradle.kts`，再清理衍生引用（fossa、文档、测试依赖、ignore 配置）
 - `docs/instrumentation-list.yaml` 通过 `./gradlew :instrumentation-docs:run` 重生成
 - 涉及测试基础设施（`testing-common`、各模块 `:testing`）的删除要单独验证：先跑相关 instrumentation 的 `:test`，避免编译过但运行时 NPE 或 trace 缺失
