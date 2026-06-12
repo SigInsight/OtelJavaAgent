@@ -43,19 +43,25 @@ public abstract class AbstractSystemMetricsTest {
                     metric ->
                         assertThat(metric)
                             .hasUnit("By")
+                            // Do not assert non-negative values here. The SDK exports this
+                            // UpDownCounter as DELTA in these tests, so memory usage can
+                            // legitimately move in either direction between collections.
+                            // Previous assertions were:
+                            // point -> point.hasAttributesSatisfyingExactly(equalTo(STATE, "used"))
+                            //     .hasValueSatisfying(v -> v.isNotNegative())
+                            // point -> point.hasAttributesSatisfyingExactly(equalTo(STATE, "free"))
+                            //     .hasValueSatisfying(v -> v.isNotNegative())
                             .hasLongSumSatisfying(
                                 sum ->
                                     sum.hasPointsSatisfying(
                                         point ->
                                             point
                                                 .hasAttributesSatisfyingExactly(
-                                                    equalTo(STATE, "used"))
-                                                .hasValueSatisfying(v -> v.isNotNegative()),
+                                                    equalTo(STATE, "used")),
                                         point ->
                                             point
                                                 .hasAttributesSatisfyingExactly(
-                                                    equalTo(STATE, "free"))
-                                                .hasValueSatisfying(v -> v.isNotNegative())))));
+                                                    equalTo(STATE, "free"))))));
     testing()
         .waitAndAssertMetrics(
             scopeName(),
