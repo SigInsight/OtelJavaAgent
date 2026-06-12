@@ -19,6 +19,6 @@ distribution:
         - tomcat
         - spring_webmvc
         - armeria
-        - spring-webflux
+        - spring_webflux
       disabled:
-        - spring-web
+        - spring_web
