@@ -412,19 +412,6 @@ libraries:
     description: Enables the experimental `hibernate.session_id` span attribute.
     type: boolean
     default: false
-- name: hibernate-reactive-1.0
-  display_name: Hibernate Reactive
-  description: |
-    This instrumentation enables context propagation for Hibernate Reactive, it does not emit any telemetry on its own.
-  library_link: https://hibernate.org/reactive/
-  features:
-  - CONTEXT_PROPAGATION
-  source_path: instrumentation/hibernate/hibernate-reactive-1.0
-  scope:
-    name: io.opentelemetry.hibernate-reactive-1.0
-  has_javaagent: true
-  javaagent_target_versions:
-  - org.hibernate.reactive:hibernate-reactive-core:(,)
 - name: http-url-connection
   display_name: HttpURLConnection
   description: |

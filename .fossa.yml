@@ -174,9 +174,6 @@ targets:
       target: ':instrumentation:hibernate:hibernate-procedure-call-4.3:javaagent'
     - type: gradle
       path: ./
-      target: ':instrumentation:hibernate:hibernate-reactive-1.0:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:internal:internal-application-logger:bootstrap'
     - type: gradle
       path: ./
