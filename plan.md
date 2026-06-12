@@ -5,51 +5,64 @@
 - 最终 JAR: ~20MB
 - Bootstrap libs: 1.2MB
 - Agent libs (relocated): 18.8MB
-- OTel API 版本模块: 18 个 → 保留 5 个，删除 13 个
+- OTel API 版本模块: 18 个 → **全部保留**（第 1 步收敛已回滚，见下）
 
-## 第1步：OTel API 版本收敛 [✅ 已完成]
+## 第1步：OTel API 版本收敛 [❌ 已回滚]
 
-### 依赖链分析
+### 回滚原因
 
-```
-1.0 ← 基础（不可删，被 reactor/kotlin-ext/inst-api-1.14 直接依赖）
-1.57 ← 独立（无依赖）
-1.59 ← 依赖 1.0
-1.52, 1.61 ← 仅 testing
-```
+执行 `30f3527e "OTel API 版本收敛"` 删除 13 个中间版本后，
+`./gradlew :instrumentation:executors:javaagent:test` 中 7 个 `CompletableFutureTest` **全部失败**，
+asyncChild span 拿不到 parent context（traceId 不一致，parentSpanContext 为 null）。
 
-### 删除清单（13 个版本）
+二分定位过程：
+- `e59b82c2`（fork base）`./gradlew :instrumentation:executors:javaagent:test --tests CompletableFutureTest` → PASS
+- `de04b199` → PASS
+- `e894a0b0` → PASS
+- `30f3527e` → **FAIL** （肇事 commit）
 
-| 版本   | 主文件数 | 依赖                   | 原因                              |
-|------|------|----------------------|---------------------------------|
-| 1.4  | 4    | 1.0                  | 仅被 1.10/1.15/1.38 依赖，随它们一起删     |
-| 1.10 | 32   | 1.0, 1.4             | 中间版本                            |
-| 1.15 | 5    | 1.0, 1.4, 1.10       | 中间版本                            |
-| 1.27 | 11   | 1.0, 1.4, 1.10, 1.15 | 被 1.42/1.47/1.50/1.56 依赖，随它们一起删 |
-| 1.31 | 12   | 1.0, 1.10, 1.15      | 中间版本                            |
-| 1.32 | 12   | 1.0, 1.10, 1.15      | 中间版本                            |
-| 1.37 | 13   | 1.0, 1.10, 1.15      | 中间版本                            |
-| 1.38 | 14   | 1.0, 1.4, 1.10       | 中间版本                            |
-| 1.40 | 25   | 1.0, 1.10, 1.15      | 被 1.42/1.47/1.50/1.56 依赖，随它们一起删 |
-| 1.42 | 9    | 1.0, 1.27, 1.40      | 非最新                             |
-| 1.47 | 7    | 1.0, 1.27, 1.40      | 非最新                             |
-| 1.50 | 10   | 1.0, 1.27, 1.40      | 非最新                             |
-| 1.56 | 5    | 1.0, 1.27, 1.40      | 非最新                             |
+### 根因
 
-### 涉及文件
+被删的 13 个中间版本不是叶子节点，而是 OTel API 桥接演进链路里的中间节点。
+应用代码（包括 testing-common 的 `BaggageSpanProcessor` 路径）在跨线程
+context 包装时，必须沿着 `应用 API → bridge 1.10 → bridge 1.27 → bridge 1.59 (agent latest)`
+逐级路由。中间版本缺失后，`InstrumentationModule` 注册链断裂，
+context 传播失败。
 
-1. `settings.gradle.kts` — 删除 13 个 include 行
-2. `opentelemetry-api-shaded-for-instrumenting/build.gradle.kts` — 删除对应的 shaded 配置 (v1_10, v1_15, v1_27, v1_31, v1_32, v1_37, v1_38, v1_40, v1_42, v1_47, v1_50, v1_56)
-3. 删除 13 个目录
-4. `docs/instrumentation-list.yaml` — 自动重生成
-5. `.fossa.yml` — 清理残留 target
+### 修复 commit
 
-### 保留
+`a004d129 恢复 OTel API 多版本桥接，修复 CompletableFuture context 传播回归`
 
-- `opentelemetry-api-1.0` — 基础桥接模块
+- 完全恢复 13 个 `instrumentation/opentelemetry-api/opentelemetry-api-1.X` 目录
+- 恢复 `opentelemetry-api-shaded-for-instrumenting/build.gradle.kts`（12 个 v1_XX Deps configuration）
+- 恢复 `javaagent/build.gradle.kts` 中 13 行 `baseJavaagentLibs(...)`
+- 在 `settings.gradle.kts` 插回 13 行 `include(...)`
+
+注：未恢复 `README.md` / `VERSIONING.md` / `.fossa.yml` 的相关行，因为后续 commit
+有改动，整体覆盖会撤销其他工作。这几个文件单独同步即可。
+
+### 教训 / 未来重试该收敛的前置条件
+
+如果将来还想做 OTel API 版本收敛，应先：
+
+1. 阅读 `opentelemetry-api-shaded-for-instrumenting/build.gradle.kts` 完整理解 14 个 v1_XX Deps 之间的依赖关系
+2. 跑 `./gradlew :opentelemetry-api-shaded-for-instrumenting:dependencies` 看实际依赖拓扑
+3. 每次只删一个"叶子节点"版本，删完立刻跑 `:instrumentation:executors:javaagent:test` 验证
+4. 保留 commit 粒度小（每删一个版本一个 commit），便于二分回滚
+
+### 当前保留（全部 18 个）
+
+- `opentelemetry-api-1.0` — 基础桥接模块（不可删，被 reactor/kotlin-ext/inst-api-1.14 直接依赖）
+- `opentelemetry-api-1.4` — 1.10/1.15/1.38 的中间依赖
+- `opentelemetry-api-1.10` — 1.15/1.31/1.32/1.37/1.38 的中间依赖
+- `opentelemetry-api-1.15` — 1.27/1.31/1.32/1.37 的中间依赖
+- `opentelemetry-api-1.27` — 1.42/1.47/1.50/1.56 的中间依赖
+- `opentelemetry-api-1.31` `1.32` `1.37` `1.38` — 中间版本
+- `opentelemetry-api-1.40` — 1.42/1.47/1.50/1.56 的中间依赖
+- `opentelemetry-api-1.42` `1.47` `1.50` `1.56` — 非最新但被链路依赖
 - `opentelemetry-api-1.52` — testing
-- `opentelemetry-api-1.57` — 最新独立版本
-- `opentelemetry-api-1.59` — 次新版本
+- `opentelemetry-api-1.57` — 独立版本
+- `opentelemetry-api-1.59` — 依赖 1.0
 - `opentelemetry-api-1.61` — testing
 
 ---

@@ -86,7 +86,7 @@ opentelemetry-java-instrumentation/
 ├── sdk-autoconfigure-support/              SDK 自动配置支持
 ├── declarative-config-bridge/              YAML 声明式配置桥接
 │
-├── opentelemetry-api-shaded-for-instrumenting/    OTel API 版本桥接（保留 v1.0 + v1.57 + v1.59）
+├── opentelemetry-api-shaded-for-instrumenting/    OTel API 版本桥接（保留全部 18 个版本：v1.0、1.4、1.10、1.15、1.27、1.31、1.32、1.37、1.38、1.40、1.42、1.47、1.50、1.52、1.56、1.57、1.59、1.61）
 ├── opentelemetry-ext-annotations-shaded-for-instrumenting/  旧注解桥接
 ├── opentelemetry-instrumentation-api-shaded-for-instrumenting/  Instrumentation API 桥接
 │
@@ -114,7 +114,7 @@ Layer 2  javaagent-bootstrap          注入 bootstrap classloader 的类
          sdk-autoconfigure-support     SDK 自动配置
          declarative-config-bridge     声明式配置桥接
          │
-Layer 3  opentelemetry-*-shaded-for-instrumenting   OTel API 版本屏蔽（保留 1.0 + 1.57 + 1.59）
+Layer 3  opentelemetry-*-shaded-for-instrumenting   OTel API 版本屏蔽（保留全部 18 个版本，含中间桥接节点）
          │
 Layer 4  :instrumentation:*:javaagent   各框架的插桩实现（80 子模块）
          :instrumentation:*:library     独立 library 插桩（不依赖 agent）
@@ -196,7 +196,7 @@ Application ClassLoader
 |------|------|
 | `:javaagent` | 最终产物，三阶段 shadow 合并所有模块 |
 | `:javaagent-internal-logging-simple` | SLF4J → `io.opentelemetry.javaagent.slf4j` |
-| `:opentelemetry-api-shaded-for-instrumenting` | OTel API 版本 shade（latest + v1.57 + v1.59） |
+| `:opentelemetry-api-shaded-for-instrumenting` | OTel API 版本 shade（保留全部 18 个版本桥接，1.0 ~ 1.61）|
 | `:opentelemetry-instrumentation-api-shaded-for-instrumenting` | Instrumentation API shade |
 | `:testing:dependencies-shaded-for-testing` | 测试依赖隔离（Armeria, Netty, Jackson 等） |
 | `:testing:agent-for-testing` | 测试用 Agent JAR |
