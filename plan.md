@@ -225,6 +225,55 @@ context 传播失败。
 
 ---
 
+## 第8步：JDBC 测试回归修复 [✅ 已完成]
+
+### 问题现象
+
+继续精简数据库连接池相关代码后，
+`./gradlew --no-daemon --console=plain :instrumentation:jdbc:javaagent:test`
+出现失败。失败集中在 JDBC span 断言，额外出现了 H2 内部初始化 SQL
+对应的 span，典型是 `INFORMATION_SCHEMA.LOB_*`，导致 trace 数量和名称不再匹配。
+
+### 根因总结
+
+这不是 JDBC 生产插桩逻辑回归，而是测试基座回归。
+
+此前对 `AbstractJdbcInstrumentationTest` 的精简，删除了历史上从 `de04b199`
+沿用下来的连接池测试矩阵和其带来的数据库生命周期保持行为。原测试并不只是
+"覆盖更多连接池"，它还通过：
+
+- `@BeforeAll` 预建 `tomcat` / `hikari` / `c3p0` 三组 DataSource
+- 参数源中长期持有 H2 / Derby / HSQLDB 的连接或池对象
+- 让嵌入式数据库在整个参数化测试阶段保持已初始化状态
+
+共同避免了 H2 在实际断言窗口内再次执行内部初始化 SQL。
+
+在这些测试脚手架被移除后，H2 的内部建库 / LOB 初始化 SQL 会落入测试本身导出的
+span 集合里，从而污染严格断言。
+
+### 解决方案
+
+放弃继续对 H2 初始化时机做局部补丁，直接把
+`instrumentation/jdbc/testing/.../AbstractJdbcInstrumentationTest.java`
+恢复到 `de04b199` 的行为模型，使测试生命周期重新和历史通过版本对齐。
+
+同步补回测试侧依赖：
+
+- `org.apache.tomcat:tomcat-jdbc:7.0.19`
+- `org.apache.tomcat:tomcat-juli:7.0.19`
+- `com.zaxxer:HikariCP:2.4.0`
+- `com.mchange:c3p0:0.9.5`
+
+这些依赖仅用于 JDBC 测试脚手架与测试执行，不代表恢复数据库连接池插桩能力。
+
+### 验证
+
+- `:instrumentation:jdbc:testing:compileJava` → 通过
+- `:instrumentation:jdbc:javaagent:compileTestJava` → 通过
+- `:instrumentation:jdbc:javaagent:test` → 通过
+
+---
+
 ## 执行原则
 
 - 每步之后跑 `./gradlew compileJava` 验证
