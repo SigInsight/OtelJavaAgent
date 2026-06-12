@@ -55,13 +55,11 @@ public abstract class AbstractSystemMetricsTest {
                                 sum ->
                                     sum.hasPointsSatisfying(
                                         point ->
-                                            point
-                                                .hasAttributesSatisfyingExactly(
-                                                    equalTo(STATE, "used")),
+                                            point.hasAttributesSatisfyingExactly(
+                                                equalTo(STATE, "used")),
                                         point ->
-                                            point
-                                                .hasAttributesSatisfyingExactly(
-                                                    equalTo(STATE, "free"))))));
+                                            point.hasAttributesSatisfyingExactly(
+                                                equalTo(STATE, "free"))))));
     testing()
         .waitAndAssertMetrics(
             scopeName(),
