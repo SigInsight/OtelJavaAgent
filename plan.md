@@ -4,9 +4,11 @@
 
 ## 当前状态
 
-- 最终 JAR: ~16 MB
+- **JAR 体积**：24.2 MB（基线 `e59b82c2` / v2.29.0-alpha）→ ~16 MB（−8.2 MB / **−33.9%**）
 - Bootstrap libs: 1.2 MB
 - Agent libs (relocated): ~14 MB
+- **`InstrumentationModule` 实现类数**：271 → 78（**−71.2%**，以 `git grep -l "extends InstrumentationModule" -- 'instrumentation/**/*.java'` 实测）
+- 被插桩库家族数（`metadata.yaml`）：279 → 95（−66.0%）
 - OTel API 版本模块: 18 个全部保留（中间桥接节点不可删，详见第 11 步回滚说明）
 
 ---
