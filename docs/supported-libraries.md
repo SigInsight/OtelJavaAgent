@@ -122,3 +122,9 @@ For this reason, the following instrumentations are disabled by default:
 To enable them, add the `otel.instrumentation.<name>.enabled` system property:
 
 - `-Dotel.instrumentation.jdbc-datasource.enabled=true`
+
+## JMX rule-based metrics
+
+Off by default. Set `-Dotel.jmx.target.system=tomcat` (or `OTEL_JMX_TARGET_SYSTEM=tomcat`) to enable
+Tomcat connector / thread-pool / session / request metrics extracted from local MBeans. See
+[Tomcat JMX metrics](../instrumentation/jmx-metrics/library/tomcat.md) for the full list.
