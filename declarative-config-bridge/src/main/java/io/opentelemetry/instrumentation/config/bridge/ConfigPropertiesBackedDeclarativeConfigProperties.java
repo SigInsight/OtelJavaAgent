@@ -11,6 +11,7 @@ import static java.util.Collections.emptySet;
 import io.opentelemetry.api.incubator.config.DeclarativeConfigProperties;
 import io.opentelemetry.common.ComponentLoader;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -81,6 +82,14 @@ public final class ConfigPropertiesBackedDeclarativeConfigProperties
     // renaming to avoid top level config
     SPECIAL_MAPPINGS.put(
         "java.servlet.javascript_snippet/development", "otel.experimental.javascript-snippet");
+    // jmx properties don't have an "instrumentation" segment
+    SPECIAL_MAPPINGS.put("java.jmx.enabled", "otel.jmx.enabled");
+    SPECIAL_MAPPINGS.put("java.jmx.config", "otel.jmx.config");
+    // otel.jmx.discovery.delay also has a dedicated branch in getLong() that reads it as a
+    // Duration and falls back to otel.metric.export.interval; this mapping is here only to keep
+    // it consistent with the rest of the jmx.* properties.
+    SPECIAL_MAPPINGS.put("java.jmx.discovery.delay", "otel.jmx.discovery.delay");
+    SPECIAL_MAPPINGS.put("java.jmx.target.system", "otel.jmx.target.system");
   }
 
   private final ConfigProperties configProperties;
@@ -118,6 +127,22 @@ public final class ConfigPropertiesBackedDeclarativeConfigProperties
   @Nullable
   @Override
   public Long getLong(String name) {
+    String fullPath = pathWithName(name);
+
+    if (fullPath.equals("java.jmx.discovery.delay")) {
+      Duration duration = configProperties.getDuration("otel.jmx.discovery.delay");
+      if (duration != null) {
+        return duration.toMillis();
+      }
+      // If discovery delay has not been configured, have a peek at the metric export interval.
+      // It makes sense for both of these values to be similar.
+      Duration fallback = configProperties.getDuration("otel.metric.export.interval");
+      if (fallback != null) {
+        return fallback.toMillis();
+      }
+      return null;
+    }
+
     return configProperties.getLong(resolvePropertyKey(name));
   }
 
