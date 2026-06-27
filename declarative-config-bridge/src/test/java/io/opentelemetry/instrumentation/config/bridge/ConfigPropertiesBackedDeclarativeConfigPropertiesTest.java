@@ -206,6 +206,33 @@ class ConfigPropertiesBackedDeclarativeConfigPropertiesTest {
                 .getStructured("package_emitter")
                 .getLong("jars_per_second"))
         .isEqualTo(30L);
+
+    // special case: jmx discovery delay parsed as duration
+    assertThat(
+            createConfig("otel.jmx.discovery.delay", "30s")
+                .getStructured("java")
+                .getStructured("jmx")
+                .getStructured("discovery")
+                .getLong("delay"))
+        .isEqualTo(30000L);
+    // fallback path: when otel.jmx.discovery.delay is unset, fall back to metric export interval
+    assertThat(
+            createConfig("otel.metric.export.interval", "30s")
+                .getStructured("java")
+                .getStructured("jmx")
+                .getStructured("discovery")
+                .getLong("delay"))
+        .isEqualTo(30000L);
+  }
+
+  @Test
+  void testJmxPrefix() {
+    // jmx properties don't have an "instrumentation" segment — verify the special mapping
+    DeclarativeConfigProperties config = createConfig("otel.jmx.enabled", "true");
+
+    assertThat(config.getStructured("java").getStructured("jmx").getBoolean("enabled"))
+        .isNotNull()
+        .isTrue();
   }
 
   @Test

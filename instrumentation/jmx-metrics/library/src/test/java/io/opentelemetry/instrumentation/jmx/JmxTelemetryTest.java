@@ -45,7 +45,9 @@ class JmxTelemetryTest {
   @Test
   void knownValidYaml() {
     JmxTelemetryBuilder jmxtelemetry = JmxTelemetry.builder(OpenTelemetry.noop());
-    addClasspathRules(jmxtelemetry, "jmx/rules/jvm.yaml");
+    // tomcat.yaml is the only rule set kept in this fork (jvm.yaml not restored — overlaps with
+     // instrumentation/runtime-telemetry which already provides jvm.* metrics).
+     addClasspathRules(jmxtelemetry, "jmx/rules/tomcat.yaml");
     assertThat(jmxtelemetry.build()).isNotNull();
   }
 
