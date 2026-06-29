@@ -268,6 +268,64 @@ java -javaagent:path/to/opentelemetry-javaagent.jar \
      -jar myapp.jar
 ```
 
+## 跑测试与排错
+
+### 先清旧测试报告，再跑
+
+Gradle 不会自动清 `build/test-results/`、`build/reports/`，老的失败 xml 会留下来。
+
+```bash
+# 推荐：整库范围清测试结果（秒级，不动构建产物）
+find . -type d \( -name test-results -o -name reports \) -path '*/build/*' \
+  -prune -exec rm -rf {} +
+
+# 更彻底：连构建产物一起清（耗时，慎用）
+./gradlew clean
+```
+
+### 跑全量测试
+
+```bash
+./gradlew test
+```
+
+跑单模块（推荐）：
+
+```bash
+./gradlew :instrumentation:jmx-metrics:library:test
+./gradlew :declarative-config-bridge:test
+```
+
+跑单个测试类 / 方法：
+
+```bash
+./gradlew :instrumentation:jmx-metrics:library:test --tests "TomcatTest"
+./gradlew :declarative-config-bridge:test \
+  --tests "*ConfigPropertiesBackedDeclarativeConfigPropertiesTest.testJmxPrefix"
+```
+
+### 提取失败用例
+
+跑完拿失败列表（不必翻 HTML 报告）：
+
+```bash
+find . -path '*/build/test-results/test/*.xml' \
+  -exec grep -l '<failure\|<error' {} \;
+```
+
+每个失败 xml 里的失败方法名 + 首行消息：
+
+```bash
+for f in $(find . -path '*/build/test-results/test/*.xml' -exec grep -l '<failure\|<error' {} \;); do
+  python3 -c "
+import re
+x=open('$f').read()
+for m in re.finditer(r'<testcase name=\"([^\"]+)\"[^>]*>\s*<(failure|error)[^>]*message=\"([^\"]+)\"', x):
+  print(m.group(1)+'  →  '+m.group(3)[:200].replace('&#10;',' | ').replace('&quot;','\"'))
+"
+done
+```
+
 ## 支持的库与框架
 
 项目开箱即用地支持大量 [库与框架](docs/supported-libraries.md#libraries--frameworks)。
