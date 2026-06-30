@@ -34,6 +34,7 @@
   "com.squareup.okhttp:okhttp#2.+": "2.7.5",
   "com.sun.xml.stream.buffer:streambuffer#+": "1.5.10",
   "com.sun.xml.stream.buffer:streambuffer#1.+": "1.5.10",
+  "com.zaxxer:HikariCP#+": "7.0.2",
   "commons-httpclient:commons-httpclient#+": "3.1",
   "commons-httpclient:commons-httpclient#3.+": "3.1",
   "io.avaje:avaje-jex#+": "3.5",

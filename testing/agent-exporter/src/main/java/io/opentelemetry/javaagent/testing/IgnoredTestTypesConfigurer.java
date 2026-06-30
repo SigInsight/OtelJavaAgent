@@ -16,5 +16,6 @@ public class IgnoredTestTypesConfigurer implements IgnoredTypesConfigurer {
   public void configure(IgnoredTypesBuilder builder) {
     // we don't want to instrument auto-generated mocks
     builder.ignoreClass("org.mockito");
+    builder.ignoreClass("com.zaxxer.hikari.metrics.IMetricsTracker$MockitoMock$");
   }
 }

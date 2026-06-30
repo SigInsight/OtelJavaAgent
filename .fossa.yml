@@ -66,6 +66,12 @@ targets:
       target: ':instrumentation:external-annotations:javaagent'
     - type: gradle
       path: ./
+      target: ':instrumentation:hikaricp-3.0:javaagent'
+    - type: gradle
+      path: ./
+      target: ':instrumentation:hikaricp-3.0:library'
+    - type: gradle
+      path: ./
       target: ':instrumentation:http-url-connection:javaagent'
     - type: gradle
       path: ./
