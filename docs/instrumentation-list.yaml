@@ -425,150 +425,6 @@ libraries:
   has_javaagent: true
   javaagent_target_versions:
   - com.zaxxer:HikariCP:[3.0.0,)
-  telemetry:
-  - when: default
-    metrics:
-    - name: db.client.connections.create_time
-      description: The time it took to create a new connection.
-      instrument: histogram
-      data_type: HISTOGRAM
-      unit: ms
-      attributes:
-      - name: pool.name
-        type: STRING
-    - name: db.client.connections.idle.min
-      description: The minimum number of idle open connections allowed.
-      instrument: updowncounter
-      data_type: LONG_SUM
-      unit: '{connections}'
-      attributes:
-      - name: pool.name
-        type: STRING
-    - name: db.client.connections.max
-      description: The maximum number of open connections allowed.
-      instrument: updowncounter
-      data_type: LONG_SUM
-      unit: '{connections}'
-      attributes:
-      - name: pool.name
-        type: STRING
-    - name: db.client.connections.pending_requests
-      description: The number of pending requests for an open connection, cumulative
-        for the entire pool.
-      instrument: updowncounter
-      data_type: LONG_SUM
-      unit: '{requests}'
-      attributes:
-      - name: pool.name
-        type: STRING
-    - name: db.client.connections.timeouts
-      description: The number of connection timeouts that have occurred trying to
-        obtain a connection from the pool.
-      instrument: counter
-      data_type: LONG_SUM
-      unit: '{timeouts}'
-      attributes:
-      - name: pool.name
-        type: STRING
-    - name: db.client.connections.usage
-      description: The number of connections that are currently in state described
-        by the state attribute.
-      instrument: updowncounter
-      data_type: LONG_SUM
-      unit: '{connections}'
-      attributes:
-      - name: pool.name
-        type: STRING
-      - name: state
-        type: STRING
-    - name: db.client.connections.use_time
-      description: The time between borrowing a connection and returning it to the
-        pool.
-      instrument: histogram
-      data_type: HISTOGRAM
-      unit: ms
-      attributes:
-      - name: pool.name
-        type: STRING
-    - name: db.client.connections.wait_time
-      description: The time it took to obtain an open connection from the pool.
-      instrument: histogram
-      data_type: HISTOGRAM
-      unit: ms
-      attributes:
-      - name: pool.name
-        type: STRING
-  - when: otel.semconv-stability.opt-in=database
-    metrics:
-    - name: db.client.connection.count
-      description: The number of connections that are currently in state described
-        by the state attribute.
-      instrument: updowncounter
-      data_type: LONG_SUM
-      unit: '{connection}'
-      attributes:
-      - name: db.client.connection.pool.name
-        type: STRING
-      - name: db.client.connection.state
-        type: STRING
-    - name: db.client.connection.create_time
-      description: The time it took to create a new connection.
-      instrument: histogram
-      data_type: HISTOGRAM
-      unit: s
-      attributes:
-      - name: db.client.connection.pool.name
-        type: STRING
-    - name: db.client.connection.idle.min
-      description: The minimum number of idle open connections allowed.
-      instrument: updowncounter
-      data_type: LONG_SUM
-      unit: '{connection}'
-      attributes:
-      - name: db.client.connection.pool.name
-        type: STRING
-    - name: db.client.connection.max
-      description: The maximum number of open connections allowed.
-      instrument: updowncounter
-      data_type: LONG_SUM
-      unit: '{connection}'
-      attributes:
-      - name: db.client.connection.pool.name
-        type: STRING
-    - name: db.client.connection.pending_requests
-      description: The number of current pending requests for an open connection.
-      instrument: updowncounter
-      data_type: LONG_SUM
-      unit: '{request}'
-      attributes:
-      - name: db.client.connection.pool.name
-        type: STRING
-    - name: db.client.connection.timeouts
-      description: The number of connection timeouts that have occurred trying to
-        obtain a connection from the pool.
-      instrument: counter
-      data_type: LONG_SUM
-      unit: '{timeout}'
-      attributes:
-      - name: db.client.connection.pool.name
-        type: STRING
-    - name: db.client.connection.use_time
-      description: The time between borrowing a connection and returning it to the
-        pool.
-      instrument: histogram
-      data_type: HISTOGRAM
-      unit: s
-      attributes:
-      - name: db.client.connection.pool.name
-        type: STRING
-    - name: db.client.connection.wait_time
-      description: The time it took to obtain an open connection from the pool.
-      instrument: histogram
-      data_type: HISTOGRAM
-      unit: s
-      attributes:
-      - name: db.client.connection.pool.name
-        type: STRING
 - name: http-url-connection
   display_name: HttpURLConnection
   description: |
@@ -2259,6 +2115,36 @@ custom:
     examples:
     - com.example.MyClass[method1,method2]
     - com.example.MyClass[method1];com.example.OtherClass[method2]
+- name: jmx-metrics
+  display_name: JMX Metrics
+  description: |
+    Collects and reports metrics exposed through Java Management Extensions (JMX). It can be configured to extract JVM and application-level telemetry data from JMX MBeans such as memory usage, thread counts, and garbage collection statistics, and translate these measurements into OpenTelemetry metrics.
+  source_path: instrumentation/jmx-metrics
+  scope:
+    name: io.opentelemetry.jmx-metrics
+  has_standalone_library: true
+  has_javaagent: true
+  configurations:
+  - name: otel.jmx.enabled
+    declarative_name: java.jmx.enabled
+    description: Enables collection of JMX metrics.
+    type: boolean
+    default: true
+  - name: otel.jmx.config
+    declarative_name: java.jmx.config
+    description: List of paths to JMX metric definition YAML files.
+    type: list
+    default: ''
+  - name: otel.jmx.discovery.delay
+    declarative_name: java.jmx.discovery.delay
+    description: Time in milliseconds between JMX MBean detection attempts.
+    type: int
+    default: 60000
+  - name: otel.jmx.target.system
+    declarative_name: java.jmx.target.system
+    description: List of predefined JMX target systems to collect metrics for.
+    type: list
+    default: ''
 - name: methods
   display_name: Methods
   description: |
