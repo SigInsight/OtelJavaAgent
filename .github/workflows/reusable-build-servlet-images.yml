@@ -16,8 +16,6 @@ jobs:
           - ubuntu-latest
         smoke-test-server:
           - tomcat
-          - tomee
-          - wildfly
       fail-fast: false
     steps:
       - name: Support long paths

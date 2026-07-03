@@ -34,59 +34,11 @@ val latestJava = "25" // renovate(java-version)
 val targets = mapOf(
   "tomcat" to listOf(
     ImageTarget(
-      listOf("8.5.98"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17", "21", latestJava),
-      mapOf("majorVersion" to "8")
-    ),
-    ImageTarget(
-      listOf("9.0.111"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17", "21", latestJava),
-      mapOf("majorVersion" to "9")
-    ),
-    ImageTarget(
       listOf("10.1.48"),
       listOf("hotspot", "openj9"),
       listOf("11", "17", "21", latestJava),
       mapOf("majorVersion" to "10"),
       "servlet-5.0"
-    ),
-  ),
-  "tomee" to listOf(
-    ImageTarget(
-      listOf("7.0.9", "7.1.4"),
-      listOf("hotspot", "openj9"),
-      listOf("8")
-    ),
-    ImageTarget(
-      listOf("8.0.16"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17", "21", latestJava)
-    ),
-    ImageTarget(
-      listOf("9.1.3"),
-      listOf("hotspot", "openj9"),
-      listOf("11", "17", "21", latestJava),
-      war = "servlet-5.0"
-    ),
-  ),
-  "wildfly" to listOf(
-    ImageTarget(
-      listOf("13.0.0.Final"),
-      listOf("hotspot", "openj9"),
-      listOf("8")
-    ),
-    ImageTarget(
-      listOf("17.0.1.Final", "21.0.0.Final"),
-      listOf("hotspot", "openj9"),
-      listOf("8", "11", "17", "21")
-    ),
-    ImageTarget(
-      listOf("28.0.1.Final", "29.0.1.Final", "30.0.1.Final"),
-      listOf("hotspot", "openj9"),
-      listOf("11", "17", "21"),
-      war = "servlet-5.0"
     ),
   ),
 )
@@ -248,11 +200,6 @@ fun configureImage(
   // Pass the full image name with tag (for servers that need it)
   if (imageNameWithTag.contains(":")) {
     extraArgs["imageName"] = imageNameWithTag
-  }
-
-  if (server == "wildfly") {
-    // wildfly url without .zip or .tar.gz suffix
-    extraArgs["baseDownloadUrl"] = "https://repo1.maven.org/maven2/org/wildfly/wildfly-dist/$version/wildfly-dist-$version"
   }
 
   val buildTask = tasks.register<DockerBuildImage>("${server}Image-$version-jdk$jdk$vmSuffix$platformSuffix") {

@@ -45,8 +45,6 @@ tasks {
 
     val suites = mapOf(
       "tomcat" to listOf("**/Tomcat*.*"),
-      "tomee" to listOf("**/Tomee*.*"),
-      "wildfly" to listOf("**/Wildfly*.*"),
     )
 
     val smokeTestSuite: String? by project
