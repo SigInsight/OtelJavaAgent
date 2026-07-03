@@ -135,11 +135,10 @@ dependencies {
   add("javaSpring4CompileOnly", project(":instrumentation:spring:spring-webflux:spring-webflux-5.3:library"))
 }
 
-// spring 6 (spring boot 3) requires java 17
-if (otelProps.testLatestDeps) {
-  otelJava {
-    minJavaVersionSupported.set(JavaVersion.VERSION_17)
-  }
+// 因为项目去掉了对 Spring Boot 2 的兼容，现在全部测试都必须基于 Spring Boot 3（需要 Java 17），
+// 所以把最低 Java 版本强制设为 17，避免在旧版本 JDK 上运行时因类版本不兼容而失败。
+otelJava {
+  minJavaVersionSupported.set(JavaVersion.VERSION_17)
 }
 
 val testJavaVersion = otelProps.testJavaVersion
