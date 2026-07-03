@@ -168,11 +168,11 @@ final class SpringDeclarativeConfigProperties implements DeclarativeConfigProper
   @Override
   public Integer getInt(String name) {
     Object value = simpleEntries.get(name);
-    if (value instanceof Integer) {
-      return (Integer) value;
+    if (value instanceof Integer i) {
+      return i;
     }
-    if (value instanceof Long) {
-      long longValue = (Long) value;
+    if (value instanceof Long l) {
+      long longValue = l;
       if (longValue >= Integer.MIN_VALUE && longValue <= Integer.MAX_VALUE) {
         // Unlikely to reach here since Jackson already deserializes values
         // fitting in int range as Integer, but handle it for safety.
@@ -180,9 +180,9 @@ final class SpringDeclarativeConfigProperties implements DeclarativeConfigProper
       }
       return null;
     }
-    if (value instanceof String) {
+    if (value instanceof String s) {
       try {
-        return Integer.parseInt((String) value);
+        return Integer.parseInt(s);
       } catch (NumberFormatException e) {
         return null;
       }
@@ -256,14 +256,14 @@ final class SpringDeclarativeConfigProperties implements DeclarativeConfigProper
 
   @Nullable
   private static Boolean booleanOrNull(@Nullable Object value) {
-    if (value instanceof Boolean) {
-      return (Boolean) value;
+    if (value instanceof Boolean b) {
+      return b;
     }
-    if (value instanceof String) {
-      if ("true".equalsIgnoreCase((String) value)) {
+    if (value instanceof String s) {
+      if ("true".equalsIgnoreCase(s)) {
         return true;
       }
-      if ("false".equalsIgnoreCase((String) value)) {
+      if ("false".equalsIgnoreCase(s)) {
         return false;
       }
     }
@@ -272,15 +272,15 @@ final class SpringDeclarativeConfigProperties implements DeclarativeConfigProper
 
   @Nullable
   private static Long longOrNull(@Nullable Object value) {
-    if (value instanceof Long) {
-      return (Long) value;
+    if (value instanceof Long l) {
+      return l;
     }
-    if (value instanceof Integer) {
-      return ((Integer) value).longValue();
+    if (value instanceof Integer i) {
+      return i.longValue();
     }
-    if (value instanceof String) {
+    if (value instanceof String s) {
       try {
-        return Long.parseLong((String) value);
+        return Long.parseLong(s);
       } catch (NumberFormatException e) {
         return null;
       }
@@ -290,18 +290,18 @@ final class SpringDeclarativeConfigProperties implements DeclarativeConfigProper
 
   @Nullable
   private static Double doubleOrNull(@Nullable Object value) {
-    if (value instanceof Double) {
-      return (Double) value;
+    if (value instanceof Double d) {
+      return d;
     }
-    if (value instanceof Integer) {
-      return ((Integer) value).doubleValue();
+    if (value instanceof Integer i) {
+      return i.doubleValue();
     }
-    if (value instanceof Long) {
-      return ((Long) value).doubleValue();
+    if (value instanceof Long l) {
+      return l.doubleValue();
     }
-    if (value instanceof String) {
+    if (value instanceof String s) {
       try {
-        return Double.parseDouble((String) value);
+        return Double.parseDouble(s);
       } catch (NumberFormatException e) {
         return null;
       }

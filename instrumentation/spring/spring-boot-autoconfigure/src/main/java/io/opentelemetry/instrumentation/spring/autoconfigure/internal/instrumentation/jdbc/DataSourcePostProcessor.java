@@ -54,10 +54,9 @@ final class DataSourcePostProcessor implements BeanPostProcessor, Ordered {
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) {
     // Exclude scoped proxy beans to avoid double wrapping
-    if (bean instanceof DataSource
+    if (bean instanceof DataSource dataSource
         && !isRoutingDatasource(bean)
         && !ScopedProxyUtils.isScopedTarget(beanName)) {
-      DataSource dataSource = (DataSource) bean;
       OpenTelemetry openTelemetry = openTelemetryProvider.getObject();
       DeclarativeConfigProperties config =
           DeclarativeConfigUtil.getInstrumentationConfig(openTelemetry, "jdbc");

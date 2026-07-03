@@ -336,11 +336,10 @@ class LogbackAppenderTest {
 
   private static int countAppenders(Class<?> appenderClass) {
     ILoggerFactory loggerFactorySpi = LoggerFactory.getILoggerFactory();
-    if (!(loggerFactorySpi instanceof LoggerContext)) {
+    if (!(loggerFactorySpi instanceof LoggerContext loggerContext)) {
       return 0;
     }
     int count = 0;
-    LoggerContext loggerContext = (LoggerContext) loggerFactorySpi;
     for (ch.qos.logback.classic.Logger logger : loggerContext.getLoggerList()) {
       Iterator<Appender<ILoggingEvent>> appenderIterator = logger.iteratorForAppenders();
       while (appenderIterator.hasNext()) {

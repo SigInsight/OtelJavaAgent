@@ -54,8 +54,8 @@ public class LogbackAppenderApplicationListener implements GenericApplicationLis
 
     // Event for which org.springframework.boot.context.logging.LoggingApplicationListener
     // initializes logging
-    if (event instanceof ApplicationEnvironmentPreparedEvent) {
-      LogbackAppenderInstaller.install((ApplicationEnvironmentPreparedEvent) event);
+    if (event instanceof ApplicationEnvironmentPreparedEvent applicationEnvironmentPreparedEvent) {
+      LogbackAppenderInstaller.install(applicationEnvironmentPreparedEvent);
     }
   }
 

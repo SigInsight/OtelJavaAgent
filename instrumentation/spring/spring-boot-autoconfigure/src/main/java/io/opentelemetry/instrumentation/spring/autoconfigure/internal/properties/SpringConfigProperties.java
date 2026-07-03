@@ -247,20 +247,19 @@ public class SpringConfigProperties implements ConfigProperties {
   @Nullable
   private Map<String, String> getSpecialMapProperty(
       String normalizedName, Map<String, String> otelSdkMap) {
-    switch (normalizedName) {
-      case "otel.resource.attributes":
-        return mergeWithOtel(resourceProperties.getAttributes(), otelSdkMap);
-      case "otel.exporter.otlp.headers":
-        return mergeWithOtel(otlpExporterProperties.getHeaders(), otelSdkMap);
-      case "otel.exporter.otlp.logs.headers":
-        return mergeWithOtel(otlpExporterProperties.getLogs().getHeaders(), otelSdkMap);
-      case "otel.exporter.otlp.metrics.headers":
-        return mergeWithOtel(otlpExporterProperties.getMetrics().getHeaders(), otelSdkMap);
-      case "otel.exporter.otlp.traces.headers":
-        return mergeWithOtel(otlpExporterProperties.getTraces().getHeaders(), otelSdkMap);
-      default:
-        return null;
-    }
+    return switch (normalizedName) {
+      case "otel.resource.attributes" ->
+          mergeWithOtel(resourceProperties.getAttributes(), otelSdkMap);
+      case "otel.exporter.otlp.headers" ->
+          mergeWithOtel(otlpExporterProperties.getHeaders(), otelSdkMap);
+      case "otel.exporter.otlp.logs.headers" ->
+          mergeWithOtel(otlpExporterProperties.getLogs().getHeaders(), otelSdkMap);
+      case "otel.exporter.otlp.metrics.headers" ->
+          mergeWithOtel(otlpExporterProperties.getMetrics().getHeaders(), otelSdkMap);
+      case "otel.exporter.otlp.traces.headers" ->
+          mergeWithOtel(otlpExporterProperties.getTraces().getHeaders(), otelSdkMap);
+      default -> null;
+    };
   }
 
   /**

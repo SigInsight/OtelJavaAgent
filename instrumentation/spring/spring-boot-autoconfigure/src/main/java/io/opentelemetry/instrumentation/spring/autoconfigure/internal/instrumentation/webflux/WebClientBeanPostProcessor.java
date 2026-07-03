@@ -44,8 +44,8 @@ final class WebClientBeanPostProcessor implements BeanPostProcessor {
 
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) {
-    if (bean instanceof WebClient) {
-      return addWebClientFilterIfNotPresent((WebClient) bean, openTelemetryProvider.getObject());
+    if (bean instanceof WebClient webClient) {
+      return addWebClientFilterIfNotPresent(webClient, openTelemetryProvider.getObject());
     }
     return bean;
   }

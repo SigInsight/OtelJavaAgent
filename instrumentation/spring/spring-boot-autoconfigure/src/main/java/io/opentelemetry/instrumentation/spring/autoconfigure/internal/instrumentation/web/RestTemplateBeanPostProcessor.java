@@ -24,11 +24,11 @@ public final class RestTemplateBeanPostProcessor implements BeanPostProcessor {
 
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) {
-    if (!(bean instanceof RestTemplate)) {
+    if (!(bean instanceof RestTemplate restTemplate)) {
       return bean;
     }
 
     return RestTemplateInstrumentation.addIfNotPresent(
-        (RestTemplate) bean, openTelemetryProvider.getObject());
+        restTemplate, openTelemetryProvider.getObject());
   }
 }

@@ -25,8 +25,8 @@ class R2dbcInstrumentingPostProcessor implements BeanPostProcessor {
 
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) {
-    if (bean instanceof ConnectionFactory && !ScopedProxyUtils.isScopedTarget(beanName)) {
-      ConnectionFactory connectionFactory = (ConnectionFactory) bean;
+    if (bean instanceof ConnectionFactory connectionFactory
+        && !ScopedProxyUtils.isScopedTarget(beanName)) {
       OpenTelemetry openTelemetry = openTelemetryProvider.getObject();
       return R2dbcTelemetry.builder(openTelemetry)
           .setQuerySanitizationEnabled(DbConfig.isQuerySanitizationEnabled(openTelemetry, "r2dbc"))

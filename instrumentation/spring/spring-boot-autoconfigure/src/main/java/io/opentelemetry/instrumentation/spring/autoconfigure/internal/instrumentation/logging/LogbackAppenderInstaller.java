@@ -291,10 +291,9 @@ class LogbackAppenderInstaller {
 
   private static <T> Optional<T> findAppender(Class<T> appenderClass) {
     ILoggerFactory loggerFactorySpi = LoggerFactory.getILoggerFactory();
-    if (!(loggerFactorySpi instanceof LoggerContext)) {
+    if (!(loggerFactorySpi instanceof LoggerContext loggerContext)) {
       return Optional.empty();
     }
-    LoggerContext loggerContext = (LoggerContext) loggerFactorySpi;
     for (ch.qos.logback.classic.Logger logger : loggerContext.getLoggerList()) {
       Iterator<Appender<ILoggingEvent>> appenderIterator = logger.iteratorForAppenders();
       while (appenderIterator.hasNext()) {

@@ -82,10 +82,9 @@ final class CachedPropertyResolver {
       if (this == obj) {
         return true;
       }
-      if (!(obj instanceof CacheKey)) {
+      if (!(obj instanceof CacheKey other)) {
         return false;
       }
-      CacheKey other = (CacheKey) obj;
       return name.equals(other.name) && targetType.equals(other.targetType);
     }
 
