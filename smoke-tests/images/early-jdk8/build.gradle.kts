@@ -18,7 +18,7 @@ tasks {
     from("Dockerfile")
   }
 
-  val repo = System.getenv("GITHUB_REPOSITORY") ?: "open-telemetry/opentelemetry-java-instrumentation"
+  val repo = (System.getenv("GITHUB_REPOSITORY") ?: "open-telemetry/opentelemetry-java-instrumentation").lowercase()
 
   val imageBuild by registering(DockerBuildImage::class) {
     dependsOn(imagePrepare)

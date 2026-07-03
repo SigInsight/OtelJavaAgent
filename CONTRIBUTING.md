@@ -1,162 +1,105 @@
 # Contributing
 
-Pull requests for bug fixes are always welcome!
+This is a solo-maintained fork of the OpenTelemetry Java Agent. Development
+happens on a self-hosted GitLab instance (`gitlab.forza0310.cn`) and is
+**push-mirrored** to GitHub. CI runs **only on GitHub** — there is no
+`.gitlab-ci.yml`.
 
-Before submitting new features or changes to current functionality, it is recommended to first
-[open an issue](https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/new)
-and discuss your ideas or propose the changes you wish to make.
+## How changes land
 
-## Breaking Changes
+1. Commit and push to `main` on GitLab.
+2. The push mirror replicates the ref to GitHub.
+3. GitHub Actions pick up the `push` event on `main`.
 
-When your PR introduces a breaking change:
+> GitLab merge requests do **not** become GitHub pull requests — push mirroring
+> replicates git refs only. If you want the PR gate (multi-JDK + muzzle + lint +
+> smoke), open the PR directly on GitHub.
 
-* Add the `breaking change` label to your PR
-  - If you can't add labels directly, post a comment containing only `/breaking-change` and the label will be added automatically
-* Provide migration notes in the PR description:
-  - What is changing and why
-  - How users should update their code/configuration
-  - Code examples showing before/after usage (if applicable)
+## CI overview
 
-**When to Use:**
+| Workflow | Trigger | Purpose |
+| --- | --- | --- |
+| `build.yml` | push to `main` / manual | Single-JDK (21) unit test gate. Minimal. |
+| `build-pull-request.yml` | pull request | Multi-JDK (8/11/17/21) unit tests + muzzle + lint + 5 smoke suites. |
+| `release.yml` | tag `v*` | Builds the agent jar and attaches it to a GitHub Release. |
+| `codeql.yml` | schedule + PR | CodeQL security analysis. |
+| `gradle-wrapper-validation.yml` | push / PR | Validates the Gradle wrapper jar. |
+| `metadata-update.yml` | weekly (Mon 02:07 UTC) / manual | Regenerates `docs/instrumentation-list.yaml`; opens an **issue** if it drifted. Does not auto-commit. |
+| `overhead-benchmark-daily.yml` | weekly (Mon 05:07 UTC) / manual | Runs the overhead benchmark, commits results to `gh-pages`. |
+| `publish-petclinic-benchmark-image.yml` | push to `Dockerfile.petclinic` / manual | Builds & pushes the PetClinic benchmark image to ghcr.io. |
+| `publish-smoke-test-*-images.yml` (×4) | push to `smoke-tests/images/<scenario>/**` / manual | Builds & pushes smoke-test app images to ghcr.io. |
+| `pr-smoke-test-*-images.yml` (×3) | PR touching `smoke-tests/images/<scenario>/**` | Builds smoke images locally (no push) to validate the build. |
+| `reusable-*.yml` | called by the above | Shared jobs: muzzle, lint, servlet-image build, smoke-image build, workflow notification. |
 
-* API changes that break backward compatibility
-* Configuration changes that require user action
-* Behavioral changes that might affect existing users
-* Removal of deprecated features
+### Dropped from upstream
 
-## Deprecations
+`build-common.yml` / `reusable-pr-build.yml` (112-job test matrix + dependencies
+on deleted scripts), `reusable-test-latest-deps.yml`, `prepare-release-branch.yml`,
+`prepare-patch-release.yml`, `draft-release-notes.yml`, `ossf-scorecard.yml`, and
+the scripts they depended on (`use-cla-approved-bot.sh`, `get-version.sh`,
+`update-version.sh`, `update-changelog-for-release.sh`,
+`generate-release-contributors.sh`, `check-*.sh`, `deadlock-detector.sh`). The
+test matrix was collapsed to one JDK on push and four on PR.
 
-When your PR deprecates functionality:
+## Releasing
 
-* Add the `deprecation` label to your PR
-  - If you can't add labels directly, post a comment containing only `/deprecation` and the label will be added automatically
-* Provide deprecation details in the PR description:
-  - What is being deprecated and why
-  - What should be used instead (if applicable)
-  - Timeline for removal (if known)
-  - Any migration guidance
+1. Ensure `main` is green (`build.yml` passed).
+2. Tag on the GitLab side: `git tag vX.Y.Z && git push origin vX.Y.Z`. The mirror
+   pushes the tag to GitHub, triggering `release.yml`.
+3. `release.yml` runs `./gradlew assemble` and attaches
+   `opentelemetry-javaagent.jar` to a GitHub Release titled `vX.Y.Z`.
 
-## Building
+No release branches, no automated version bump. The working-copy version is a
+SNAPSHOT, so the jar filename inside the build is `*-SNAPSHOT.jar` even though
+the release is named after the tag; the workflow renames the asset to
+`opentelemetry-javaagent.jar` on attach. Bump `version.gradle.kts` yourself if
+you want the jar filename to match the tag.
 
-This project requires Java 21 to build and run tests. Newer JDK's may work, but this version is used in CI.
+## Smoke tests
 
-Some instrumentations and tests may put constraints on which java versions they support.
-See [Running the tests](./docs/contributing/running-tests.md) for more details.
+`build-pull-request.yml` runs `:smoke-tests:test` over five suites:
 
-### Snapshot builds
+- `other` — spring-boot, fake-backend, and early-jdk8 (`CrashEarlyJdk8Test`)
+- `tomcat` / `tomee` / `websphere` / `wildfly` — the servlet scenario
 
-For developers testing code changes before a release is complete, snapshot builds of the `main`
-branch are available from the Sonatype snapshot repository at `https://central.sonatype.com/repository/maven-snapshots/`.
+The test sources hardcode image names under the **upstream** `open-telemetry`
+ghcr.io org (pinned in `smoke-tests/.../TestImageVersions.java`). Smoke tests
+therefore pull upstream-published app images and validate this fork's **agent**
+against them. The fork's own `publish-smoke-test-*-images` workflows build
+images under the fork's ghcr.io owner (the jib config reads `$GITHUB_REPOSITORY`)
+but those are not yet consumed by the tests — keep them to exercise the image
+build and as the path to self-hosted images if the test names are ever
+parameterized.
 
-To find the latest snapshot, check the maven metadata (replace `{LATEST_VERSION}` with the current
-stable release):
+The `security-manager` and `grpc` smoke scenarios were removed (test classes and
+the `security-manager` image directory deleted).
 
-```
-https://central.sonatype.com/repository/maven-snapshots/io/opentelemetry/javaagent/opentelemetry-javaagent/{LATEST_VERSION}-SNAPSHOT/maven-metadata.xml
-```
+## Prerequisites for image / benchmark jobs
 
-Look for the `<timestamp>` and `<buildNumber>` in the XML response, then construct the download URL:
+- **ghcr.io pushes** require the GitHub repository name to be **lowercase**.
+  The jib config derives the image path from `$GITHUB_REPOSITORY`, and ghcr.io
+  rejects mixed-case names. Rename the repo if needed.
+- **`overhead-benchmark-daily.yml`** commits results to a `gh-pages` branch.
+  Create it once (`git branch gh-pages && git push origin gh-pages`) before the
+  first scheduled/manual run, or the `actions/checkout ref: gh-pages` step will
+  fail.
 
-```
-https://central.sonatype.com/repository/maven-snapshots/io/opentelemetry/javaagent/opentelemetry-javaagent/{VERSION}-SNAPSHOT/opentelemetry-javaagent-{VERSION}-{TIMESTAMP}-{BUILD_NUMBER}.jar
-```
+## Metadata update
 
-For example, if the metadata shows timestamp `20250925.160708` and build number `56` for version
-`2.21.0`, the snapshot JAR URL would be:
+`metadata-update.yml` runs weekly, regenerates
+`docs/instrumentation-list.yaml`, and — if it changed — opens (or comments on)
+an issue titled *"chore: update instrumentation list [automated reminder]"*. It
+deliberately does **not** commit or open a PR: automated commits on the GitHub
+side would diverge from the GitLab source of truth. When you see the issue, run
+`./gradlew :instrumentation-docs:runAnalysis` locally, commit
+`docs/instrumentation-list.yaml` on GitLab, and push — the mirror brings it to
+GitHub.
 
-```
-https://central.sonatype.com/repository/maven-snapshots/io/opentelemetry/javaagent/opentelemetry-javaagent/2.21.0-SNAPSHOT/opentelemetry-javaagent-2.21.0-20250925.160708-56.jar
-```
-
-### Building from source
-
-Build using Java 21:
+## Local checks before pushing
 
 ```bash
-java -version
+./gradlew spotlessCheck                                        # formatting
+./gradlew test -PtestJavaVersion=21 -PtestJavaVM=hotspot -PtestIndy=false
+./gradlew :instrumentation:muzzle1                             # muzzle sanity (full: muzzle1-4)
+./gradlew :smoke-tests:test -PsmokeTestSuite=other             # needs Docker + the app images
 ```
-
-```bash
-./gradlew assemble
-```
-
-and then you can find the java agent artifact at
-
-`javaagent/build/libs/opentelemetry-javaagent-<version>.jar`.
-
-To simplify local development, you can remove the version number from the build product. This allows
-the file name to stay consistent across versions. To do so, add the following to
-`~/.gradle/gradle.properties`.
-
-```properties
-removeJarVersionNumbers=true
-```
-
-## Working with fork repositories
-
-If you forked this repository, some GitHub Actions workflows may fail due to missing secrets or permissions. To avoid unnecessary workflow failure notifications:
-
-### Disabling GitHub Actions in your fork
-
-**Option 1: Disable all workflows** - Go to Settings > Actions > General, select "Disable actions", and save
-
-**Option 2: Disable specific workflows** - Go to Actions tab, click a workflow, click "..." menu, and select "Disable workflow"
-
-Either option still allows you to contribute via pull requests to the main repository.
-
-## IntelliJ setup and troubleshooting
-
-See [IntelliJ setup and troubleshooting](docs/contributing/intellij-setup-and-troubleshooting.md)
-
-## Style guide
-
-See [Style guide](docs/contributing/style-guide.md)
-
-## Running the tests
-
-See [Running the tests](docs/contributing/running-tests.md)
-
-## Writing instrumentation
-
-See [Writing instrumentation](docs/contributing/writing-instrumentation.md)
-
-## Understanding the javaagent structure
-
-See [Understanding the javaagent structure](docs/contributing/javaagent-structure.md)
-
-## Understanding the javaagent instrumentation testing components
-
-See [Understanding the javaagent instrumentation testing components](docs/contributing/javaagent-test-infra.md)
-
-## Debugging
-
-See [Debugging](docs/contributing/debugging.md)
-
-## Understanding Muzzle
-
-See [Understanding Muzzle](docs/contributing/muzzle.md)
-
-## Troubleshooting PR build failures
-
-The build logs are very long and there is a lot of parallelization, so the logs can be hard to
-decipher, but if you expand the "Build scan" step, you should see something like:
-
-```text
-Run cat build-scan.txt
-https://gradle.com/s/ila4qwp5lcf5s
-```
-
-Opening the build scan link can sometimes take several seconds (it's a large build), but it
-typically makes it a lot clearer what's failing. Sometimes there will be several build scans in a
-log, so look for one that follows the "BUILD FAILED" message.
-
-You can also try the "Explain error" button at the top of the GitHub Actions page,
-which often does a reasonable job of parsing the long build log and displaying the important part.
-
-### Draft PRs
-
-Draft PRs are welcome, especially when exploring new ideas or experimenting with a hypothesis.
-However, draft PRs may not receive the same degree of attention, feedback, or scrutiny unless
-requested directly. In order to help keep the PR backlog maintainable, drafts older than 6 months
-will be closed by the project maintainers. This should not be interpreted as a rejection. Closed
-PRs may be reopened by the author when time or interest allows.

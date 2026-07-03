@@ -57,7 +57,7 @@ springBoot {
   }
 }
 
-val repo = System.getenv("GITHUB_REPOSITORY") ?: "open-telemetry/opentelemetry-java-instrumentation"
+val repo = (System.getenv("GITHUB_REPOSITORY") ?: "open-telemetry/opentelemetry-java-instrumentation").lowercase()
 val bootJarTask = tasks.named<Jar>("bootJar")
 
 val prepareBootJarForImage by tasks.registering(Sync::class) {

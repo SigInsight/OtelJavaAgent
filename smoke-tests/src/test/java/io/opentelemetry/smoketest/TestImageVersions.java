@@ -11,12 +11,6 @@ public class TestImageVersions {
   // smoke-test-spring-boot
   public static final String SPRING_BOOT_VERSION = "20251116.19402383847";
 
-  // smoke-test-grpc
-  public static final String GRPC_VERSION = "20251117.19445937433";
-
-  // smoke-test-security-manager
-  public static final String SECURITY_MANAGER_VERSION = "20251116.19402383852";
-
   // smoke-test-zulu-openjdk-8u31
   public static final String ZULU_OPENJDK_8U31_VERSION = "20251117.19421579350";
 

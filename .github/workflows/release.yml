@@ -1,0 +1,51 @@
+name: Release
+
+# Tag-based release: push a tag `vX.Y.Z` on main to build the agent jar and
+# attach it to a GitHub Release. No release branches, no version bumping,
+# no changelog automation — solo workflow.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # for gh release create
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Free disk space
+        run: .github/scripts/gha-free-disk-space.sh
+
+      - name: Set up JDK for running Gradle
+        uses: actions/setup-java@be666c2fcd7a37755bbfafc9c5b7cafaece252f6e # v5.2.0
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+
+      - name: Increase gradle daemon heap size
+        run: |
+          sed -i "s/org.gradle.jvmargs=/org.gradle.jvmargs=-Xmx3g /" gradle.properties
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Build agent jar
+        run: ./gradlew assemble -x javadoc -x test
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          jar=$(ls javaagent/build/libs/opentelemetry-javaagent-*-SNAPSHOT.jar 2>/dev/null | head -1)
+          if [ -z "$jar" ]; then
+            jar=$(ls javaagent/build/libs/opentelemetry-javaagent-*.jar | grep -v sources | head -1)
+          fi
+          cp "$jar" opentelemetry-javaagent.jar
+          gh release create "$GITHUB_REF_NAME" opentelemetry-javaagent.jar \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Automated release of the OpenTelemetry Java Agent jar from commit $GITHUB_SHA."
