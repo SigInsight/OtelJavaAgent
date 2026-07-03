@@ -1,6 +1,6 @@
 name: Build pull request
 
-# PR gate: multi-JDK unit tests + muzzle + lint + smoke test (other suite).
+# PR gate (or manual run): multi-JDK unit tests + muzzle + lint + 5 smoke suites.
 # push-to-main gets the lighter build.yml instead.
 
 on:
@@ -9,9 +9,10 @@ on:
       - opened
       - synchronize
       - reopened
+  workflow_dispatch:
 
 concurrency:
-  group: build-pull-request-${{ github.event.pull_request.number }}
+  group: build-pull-request-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:
