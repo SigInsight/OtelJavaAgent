@@ -166,6 +166,8 @@
   "org.apache.tomcat:jakartaee-migration#+": "1.0.12",
   "org.apache.tomcat:tomcat-catalina#+": "11.0.22",
   "org.apache.tomcat:tomcat-jasper#+": "11.0.22",
+  "org.apache.tomcat:tomcat-jdbc#+": "11.0.22",
+  "org.apache.tomcat:tomcat-juli#+": "11.0.22",
   "org.apache.tomee:openejb-cxf-rs#+": "10.1.5",
   "org.asynchttpclient:async-http-client#+": "3.0.10",
   "org.glassfish:jakarta.faces#+": "4.1.9",

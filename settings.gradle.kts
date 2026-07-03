@@ -371,6 +371,7 @@ include(":instrumentation:spring:starters:spring-boot-starter")
 // zipkin-spring-boot-starter 已随 zipkin exporter 一起移除
 include(":instrumentation:tomcat:tomcat-10.0:javaagent")
 include(":instrumentation:tomcat:tomcat-common-7.0:javaagent")
+include(":instrumentation:tomcat:tomcat-jdbc-8.5:javaagent")
 
 // benchmark
 include(":benchmark-overhead-jmh")
