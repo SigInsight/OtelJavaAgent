@@ -2086,6 +2086,26 @@ libraries:
     description: List of request parameter names to capture as span attributes.
     type: list
     default: ''
+- name: tomcat-jdbc-8.5
+  display_name: Tomcat JDBC
+  description: This instrumentation enables database connection pool metrics for Tomcat
+    JDBC.
+  semantic_conventions:
+  - DATABASE_POOL_METRICS
+  library_link: https://tomcat.apache.org/tomcat-8.5-doc/jdbc-pool.html
+  source_path: instrumentation/tomcat/tomcat-jdbc-8.5
+  scope:
+    name: io.opentelemetry.tomcat-jdbc-8.5
+  has_javaagent: true
+  javaagent_target_versions:
+  - org.apache.tomcat:tomcat-jdbc:[8.5.0,)
+  configurations:
+  - name: otel.semconv-stability.opt-in
+    declarative_name: general.semconv_stability.opt_in
+    description: |
+      Opt-in to emit stable semantic conventions instead of the old experimental semantic conventions. Accepts a comma-separated list of semantic convention groups (e.g., `database`, `http`, `messaging`). Use `<group>/dup` to emit both old and new conventions simultaneously. Stable semantic conventions will become the default in version 3.0 of the agent.
+    type: list
+    default: ''
 custom:
 - name: external-annotations
   display_name: External Annotations
