@@ -38,7 +38,7 @@ public class LinuxTestContainerManager extends AbstractTestContainerManager {
     backend =
         new GenericContainer<>(
                 DockerImageName.parse(
-                    "ghcr.io/open-telemetry/opentelemetry-java-instrumentation/smoke-test-fake-backend:"
+                    "ghcr.io/" + ImageVersions.GHCR_REPOSITORY + "/smoke-test-fake-backend:"
                         + ImageVersions.FAKE_BACKEND_VERSION))
             .withExposedPorts(BACKEND_PORT)
             .withEnv("JAVA_TOOL_OPTIONS", "-Xmx128m")

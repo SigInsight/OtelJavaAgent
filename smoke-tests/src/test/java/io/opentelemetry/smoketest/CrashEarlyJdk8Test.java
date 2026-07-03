@@ -40,7 +40,7 @@ class CrashEarlyJdk8Test {
     target =
         new GenericContainer<>(
                 DockerImageName.parse(
-                    "ghcr.io/open-telemetry/opentelemetry-java-instrumentation/smoke-test-zulu-openjdk-8u31:"
+                    "ghcr.io/" + ImageVersions.GHCR_REPOSITORY + "/smoke-test-zulu-openjdk-8u31:"
                         + TestImageVersions.ZULU_OPENJDK_8U31_VERSION))
             .withStartupTimeout(Duration.ofMinutes(5))
             .withLogConsumer(new Slf4jLogConsumer(logger))

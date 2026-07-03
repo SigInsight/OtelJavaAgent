@@ -62,14 +62,17 @@ you want the jar filename to match the tag.
 - `other` — spring-boot, fake-backend, and early-jdk8 (`CrashEarlyJdk8Test`)
 - `tomcat` — the servlet scenario
 
-The test sources hardcode image names under the **upstream** `open-telemetry`
-ghcr.io org (pinned in `smoke-tests/.../TestImageVersions.java`). Smoke tests
-therefore pull upstream-published app images and validate this fork's **agent**
-against them. The fork's own `publish-smoke-test-*-images` workflows build
-images under the fork's ghcr.io owner (the jib config reads `$GITHUB_REPOSITORY`)
-but those are not yet consumed by the tests — keep them to exercise the image
-build and as the path to self-hosted images if the test names are ever
-parameterized.
+The test sources build image names from `ImageVersions.GHCR_REPOSITORY`, which
+defaults to this fork's ghcr.io org (`siginsight/oteljavaagent`) so that local
+`:smoke-tests:test` pulls the fork's public images; `$GITHUB_REPOSITORY`
+(lowercased) overrides it in CI (same value for this fork). The version tags
+are pinned in `smoke-tests/.../TestImageVersions.java` and `ImageVersions.java`,
+pointing at tags the fork has published. In fork CI the smoke tests therefore
+pull the fork's own published app images (built by
+`publish-smoke-test-*-images`) and validate this fork's **agent** against them.
+After manually triggering `publish-smoke-test-*-images` (workflow_dispatch),
+copy the resulting `$(date +%Y%m%d).$GITHUB_RUN_ID` tag into the matching
+`*_VERSION` constant before running the smoke suite, or the pull will 404.
 
 The `security-manager` and `grpc` smoke scenarios were removed (test classes and
 the `security-manager` image directory deleted).
@@ -79,6 +82,9 @@ the `security-manager` image directory deleted).
 - **ghcr.io pushes** require the GitHub repository name to be **lowercase**.
   The jib config derives the image path from `$GITHUB_REPOSITORY`, and ghcr.io
   rejects mixed-case names. Rename the repo if needed.
+- The fork's smoke-test images on ghcr.io are **public**, so `build-pull-request.yml`
+  pulls them with no authentication. (Make them private only with a matching
+  `docker/login-action` + `packages: read` on the smoke-test job.)
 - **`overhead-benchmark-weekly.yml`** commits results to a `gh-pages` branch.
   `gh-pages` is a **GitHub-only** branch: it must be excluded from the
   GitLab→GitHub push mirror (mirror only `refs/heads/main` + tags), otherwise

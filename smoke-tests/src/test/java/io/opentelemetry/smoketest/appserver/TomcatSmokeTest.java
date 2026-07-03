@@ -5,6 +5,7 @@
 
 package io.opentelemetry.smoketest.appserver;
 
+import io.opentelemetry.smoketest.ImageVersions;
 import io.opentelemetry.smoketest.SmokeTestOptions;
 import io.opentelemetry.smoketest.TargetWaitStrategy;
 import java.time.Duration;
@@ -16,7 +17,7 @@ abstract class TomcatSmokeTest extends AppServerTest {
     options
         .image(
             appServerImage(
-                "ghcr.io/open-telemetry/opentelemetry-java-instrumentation/smoke-test-servlet-tomcat"))
+                "ghcr.io/" + ImageVersions.GHCR_REPOSITORY + "/smoke-test-servlet-tomcat"))
         .waitStrategy(new TargetWaitStrategy.Log(Duration.ofMinutes(1), ".*Server startup in.*"));
   }
 

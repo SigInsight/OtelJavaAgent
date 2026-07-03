@@ -9,13 +9,13 @@ package io.opentelemetry.smoketest;
 public class TestImageVersions {
 
   // smoke-test-spring-boot
-  public static final String SPRING_BOOT_VERSION = "20251116.19402383847";
+  public static final String SPRING_BOOT_VERSION = "20260703.28666040689";
 
   // smoke-test-zulu-openjdk-8u31
-  public static final String ZULU_OPENJDK_8U31_VERSION = "20251117.19421579350";
+  public static final String ZULU_OPENJDK_8U31_VERSION = "20260703.28649314617";
 
   // smoke-test-servlet-* (all servlet variants)
-  public static final String SERVLET_VERSION = "20260502.25257829980";
+  public static final String SERVLET_VERSION = "20260703.28665068014";
 
   private TestImageVersions() {}
 }

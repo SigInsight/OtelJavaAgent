@@ -38,8 +38,8 @@ public class SmokeTestOptions<T> {
     image(
         jdk ->
             String.format(
-                "ghcr.io/open-telemetry/opentelemetry-java-instrumentation/smoke-test-spring-boot:jdk%s-%s",
-                jdk, TestImageVersions.SPRING_BOOT_VERSION));
+                "ghcr.io/%s/smoke-test-spring-boot:jdk%s-%s",
+                ImageVersions.GHCR_REPOSITORY, jdk, TestImageVersions.SPRING_BOOT_VERSION));
     waitStrategy(
         new TargetWaitStrategy.Log(Duration.ofMinutes(1), ".*Started SpringbootApplication in.*"));
     return this;
