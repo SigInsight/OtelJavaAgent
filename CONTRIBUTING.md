@@ -25,7 +25,7 @@ happens on a self-hosted GitLab instance (`gitlab.forza0310.cn`) and is
 | `codeql.yml` | schedule + PR | CodeQL security analysis. |
 | `gradle-wrapper-validation.yml` | push / PR | Validates the Gradle wrapper jar. |
 | `metadata-update.yml` | weekly (Mon 02:07 UTC) / manual | Regenerates `docs/instrumentation-list.yaml`; opens an **issue** if it drifted. Does not auto-commit. |
-| `overhead-benchmark-daily.yml` | weekly (Mon 05:07 UTC) / manual | Runs the overhead benchmark, commits results to `gh-pages`. |
+| `overhead-benchmark-weekly.yml` | weekly (Mon 05:07 UTC) / manual | Runs the overhead benchmark, commits results to `gh-pages`. |
 | `publish-petclinic-benchmark-image.yml` | push to `Dockerfile.petclinic` / manual | Builds & pushes the PetClinic benchmark image to ghcr.io. |
 | `publish-smoke-test-*-images.yml` (×4) | push to `smoke-tests/images/<scenario>/**` / manual | Builds & pushes smoke-test app images to ghcr.io. |
 | `pr-smoke-test-*-images.yml` (×3) | PR touching `smoke-tests/images/<scenario>/**` | Builds smoke images locally (no push) to validate the build. |
@@ -79,10 +79,13 @@ the `security-manager` image directory deleted).
 - **ghcr.io pushes** require the GitHub repository name to be **lowercase**.
   The jib config derives the image path from `$GITHUB_REPOSITORY`, and ghcr.io
   rejects mixed-case names. Rename the repo if needed.
-- **`overhead-benchmark-daily.yml`** commits results to a `gh-pages` branch.
-  Create it once (`git branch gh-pages && git push origin gh-pages`) before the
-  first scheduled/manual run, or the `actions/checkout ref: gh-pages` step will
-  fail.
+- **`overhead-benchmark-weekly.yml`** commits results to a `gh-pages` branch.
+  `gh-pages` is a **GitHub-only** branch: it must be excluded from the
+  GitLab→GitHub push mirror (mirror only `refs/heads/main` + tags), otherwise
+  each mirror sync overwrites the benchmark result commits. Bootstrap it once
+  as an empty orphan branch containing `benchmark-overhead/results/` (a README
+  placeholder is enough) and push to the `github` remote, or the
+  `actions/checkout ref: gh-pages` step will fail.
 
 ## Metadata update
 
