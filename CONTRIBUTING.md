@@ -57,10 +57,10 @@ you want the jar filename to match the tag.
 
 ## Smoke tests
 
-`build-pull-request.yml` runs `:smoke-tests:test` over five suites:
+`build-pull-request.yml` runs `:smoke-tests:test` over four suites:
 
 - `other` — spring-boot, fake-backend, and early-jdk8 (`CrashEarlyJdk8Test`)
-- `tomcat` / `tomee` / `websphere` / `wildfly` — the servlet scenario
+- `tomcat` / `tomee` / `wildfly` — the servlet scenario
 
 The test sources hardcode image names under the **upstream** `open-telemetry`
 ghcr.io org (pinned in `smoke-tests/.../TestImageVersions.java`). Smoke tests

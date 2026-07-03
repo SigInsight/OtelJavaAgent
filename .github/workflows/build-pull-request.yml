@@ -87,7 +87,6 @@ jobs:
           - other
           - tomcat
           - tomee
-          - websphere
           - wildfly
       fail-fast: false
     steps:

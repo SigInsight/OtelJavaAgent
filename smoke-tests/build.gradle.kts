@@ -46,7 +46,6 @@ tasks {
     val suites = mapOf(
       "tomcat" to listOf("**/Tomcat*.*"),
       "tomee" to listOf("**/Tomee*.*"),
-      "websphere" to listOf("**/Websphere*.*"),
       "wildfly" to listOf("**/Wildfly*.*"),
     )
 

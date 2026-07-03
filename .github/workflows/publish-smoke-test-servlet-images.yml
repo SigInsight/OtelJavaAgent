@@ -39,11 +39,7 @@ jobs:
         smoke-test-server:
           - tomcat
           - tomee
-          - websphere
           - wildfly
-        exclude:
-          - os: windows-latest
-            smoke-test-server: websphere
       fail-fast: false
     steps:
       - name: Support long paths

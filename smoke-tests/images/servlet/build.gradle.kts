@@ -71,17 +71,6 @@ val targets = mapOf(
       war = "servlet-5.0"
     ),
   ),
-  "websphere" to listOf(
-    ImageTarget(
-      listOf(
-        "icr.io/appcafe/websphere-traditional:8.5.5.29@sha256:5d11ebb08f1f99e43fc1386149b6df6378a2d61c0511ce48318b5c4ae8228f89",
-        "icr.io/appcafe/websphere-traditional:9.0.5.27@sha256:f9c5c9f4fb45ddf989c56dec48d75dd85579fa60d86be831c4cbfada94bca0d4"
-      ),
-      listOf("openj9"),
-      listOf("8"),
-      windows = false
-    ),
-  ),
   "wildfly" to listOf(
     ImageTarget(
       listOf("13.0.0.Final"),
