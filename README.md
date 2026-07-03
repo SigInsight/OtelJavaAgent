@@ -16,8 +16,6 @@
 本项目提供一个 Java Agent JAR，可以附加到任意 Java 8 及以上应用上，动态注入字节码，从大量常见库和框架中采集遥测数据。
 最终效果是不需要修改业务代码，就可以从 Java 应用中采集 traces、metrics 和 logs。
 
-本仓库也会发布若干库的独立 instrumentation，可以不依赖完整 Agent 直接使用。
-fork from 原项目 8c34534fc2da55b230113e56d2a81954e3373c02 提交
 
 ## 快速开始
 

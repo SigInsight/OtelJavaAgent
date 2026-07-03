@@ -293,17 +293,3 @@ additional_telemetry:
 ```
 
 When both manual and auto-generated telemetry exist for the same `when` condition, they are merged with manual entries taking precedence in case of conflicts (same metric name or span kind).
-
-## Doc Synchronization
-
-The documentation site has a section that lists all the instrumentations in the context of
-documenting how to disable them.
-
-We have a class `DocSynchronization` that runs a check against our instrumentation-list.yaml file to
-identify when we have missing entries, so we know to go update them.
-
-You can run this via:
-
-`./gradlew :instrumentation-docs:docSiteAudit`
-
-This is setup to run nightly in a github action.
