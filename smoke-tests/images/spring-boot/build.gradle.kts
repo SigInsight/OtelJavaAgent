@@ -77,9 +77,21 @@ springBoot {
 val repo = (System.getenv("GITHUB_REPOSITORY") ?: "open-telemetry/opentelemetry-java-instrumentation").lowercase()
 val bootJarTask = tasks.named<Jar>("bootJar")
 
+// Two image layouts coexist in this script:
+//   SB 3.x (useBootJarLauncher=true): packages the bootJar and launches `java -jar /app/app.jar`
+//     to exercise Spring Boot's JarLauncher/classloader.
+//   SB 2.x (useBootJarLauncher=false): uses Jib's default exploded layout (classes in
+//     /app/classes, deps in /app/libs/*, main-class entrypoint). This matches upstream's
+//     pre-2026-04-13 smoke image — commit 15075b96 switched to the bootJar launcher, whose
+//     SB 4.x JarLauncher is Java 17 bytecode and crashes on JDK 8/11 with
+//     UnsupportedClassVersionError. Upstream's published jdk8/jdk11 image still uses the old
+//     exploded layout (so upstream CI stays green); the fork rebuilds its own SB 2.x image,
+//     so it must keep the exploded layout for JDK 8/11 compatibility.
+val useBootJarLauncher = springBootMajor != "2"
+
 val prepareBootJarForImage by tasks.registering(Sync::class) {
-  // Preserve Spring Boot's packaged runtime instead of Jib's default exploded layout so
-  // smoke tests exercise the typical bootJar launcher/classloader behavior used by java -jar.
+  // Copy the bootJar into the Jib extra directory so the bootJar-launcher image exercises
+  // the typical `java -jar` packaging. Only wired up for SB 3.x (useBootJarLauncher=true).
   from(bootJarTask)
   into(layout.buildDirectory.dir("jib-extra/app"))
   rename { "app.jar" }
@@ -88,21 +100,32 @@ val prepareBootJarForImage by tasks.registering(Sync::class) {
 jib {
   from.image = "eclipse-temurin:$targetJDK"
   to.image = "ghcr.io/$repo/smoke-test-spring-boot:$imageTagPrefix$targetJDK-$tag"
-  container.entrypoint = listOf("java", "-jar", "/app/app.jar")
   container.ports = listOf("8080")
-  extraDirectories {
-    paths {
-      path {
-        setFrom(layout.buildDirectory.dir("jib-extra").get().asFile.toPath())
-        into = "/"
+  if (useBootJarLauncher) {
+    // bootJar layout: launch the packaged jar with Spring Boot's JarLauncher.
+    container.entrypoint = listOf("java", "-jar", "/app/app.jar")
+    extraDirectories {
+      paths {
+        path {
+          setFrom(layout.buildDirectory.dir("jib-extra").get().asFile.toPath())
+          into = "/"
+        }
       }
     }
+  } else {
+    // Exploded layout: Jib places classes in /app/classes and deps in /app/libs/* and
+    // generates `java -cp /app/classes:/app/libs/* <mainClass>`. No JarLauncher is involved,
+    // so the image runs on JDK 8/11. mainClass is set explicitly (the app's only main class)
+    // rather than relying on Jib auto-detection.
+    container.mainClass = "io.opentelemetry.smoketest.springboot.SpringbootApplication"
   }
 }
 
 tasks {
   withType<JibTask>().configureEach {
-    dependsOn(prepareBootJarForImage)
+    if (useBootJarLauncher) {
+      dependsOn(prepareBootJarForImage)
+    }
     // Jib tasks access Task.project at execution time which is not compatible with configuration cache
     notCompatibleWithConfigurationCache("Jib task accesses Task.project at execution time")
   }
