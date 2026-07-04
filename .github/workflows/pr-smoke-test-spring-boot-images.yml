@@ -13,11 +13,24 @@ permissions:
   contents: read
 
 jobs:
+  # SB 3.x image (JDK 17/21/25) — backs SpringBootSmokeTest + PropagationTest.
   build:
     uses: ./.github/workflows/reusable-pr-smoke-test-images.yml
     with:
       project: ":smoke-tests:images:spring-boot"
       cache-read-only: true
+      spring-boot-major: "3"
       # SB 3.x requires Java 17+
       skip-java-8: true
       skip-java-11: true
+
+  # SB 2.x image (JDK 8/11/17/21/25) — backs the cross-JDK compatibility smoke tests
+  # (Logs, SdkDisabled, Sampling, AgentDebugLogging). Built from the same parameterized
+  # build script via -PspringBootMajor=2; mirrors the publish-sb2 job so SB 2.x image
+  # build breakage is caught in PR (not only at publish time).
+  build-sb2:
+    uses: ./.github/workflows/reusable-pr-smoke-test-images.yml
+    with:
+      project: ":smoke-tests:images:spring-boot"
+      cache-read-only: true
+      spring-boot-major: "2"
