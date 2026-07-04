@@ -21,7 +21,8 @@ abstract class PropagationTest extends AbstractSmokeTest<Integer> {
 
   @Test
   void shouldPropagate() {
-    start(11);
+    // SB 3.x image is built for JDK 17/21/25 only.
+    start(17);
     AggregatedHttpResponse response = client().get("/front").aggregate().join();
 
     var traceId = testing.waitForTraces(1).get(0).get(0).getTraceId();

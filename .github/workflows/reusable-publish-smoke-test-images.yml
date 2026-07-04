@@ -22,6 +22,11 @@ on:
       skip-java-11:
         type: boolean
         required: false
+      spring-boot-major:
+        description: Passed as -PspringBootMajor to select the Spring Boot major (2 or 3); only meaningful for the spring-boot image, ignored by others.
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -64,17 +69,17 @@ jobs:
 
       - name: Build Java 8 Docker image
         if: "!inputs.skip-java-8"
-        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK=8 -Djib.httpTimeout=120000 -Djib.console=plain
+        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK=8 -PspringBootMajor="${{ inputs.spring-boot-major }}" -Djib.httpTimeout=120000 -Djib.console=plain
 
       - name: Build Java 11 Docker image
         if: "!inputs.skip-java-11"
-        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK=11 -Djib.httpTimeout=120000 -Djib.console=plain
+        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK=11 -PspringBootMajor="${{ inputs.spring-boot-major }}" -Djib.httpTimeout=120000 -Djib.console=plain
 
       - name: Build Java 17 Docker image
-        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK=17 -Djib.httpTimeout=120000 -Djib.console=plain
+        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK=17 -PspringBootMajor="${{ inputs.spring-boot-major }}" -Djib.httpTimeout=120000 -Djib.console=plain
 
       - name: Build Java 21 Docker image
-        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK=21 -Djib.httpTimeout=120000 -Djib.console=plain
+        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK=21 -PspringBootMajor="${{ inputs.spring-boot-major }}" -Djib.httpTimeout=120000 -Djib.console=plain
 
       - name: Build Java ${{ env.LATEST_JAVA_VERSION }} Docker image
-        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK="$LATEST_JAVA_VERSION" -Djib.httpTimeout=120000 -Djib.console=plain
+        run: ./gradlew "$PROJECT:jib" -Ptag="$TAG" -PtargetJDK="$LATEST_JAVA_VERSION" -PspringBootMajor="${{ inputs.spring-boot-major }}" -Djib.httpTimeout=120000 -Djib.console=plain

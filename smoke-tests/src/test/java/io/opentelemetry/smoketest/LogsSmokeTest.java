@@ -18,7 +18,7 @@ class LogsSmokeTest extends AbstractSmokeTest<Integer> {
 
   @Override
   protected void configure(SmokeTestOptions<Integer> options) {
-    options.springBoot();
+    options.springBoot2();
   }
 
   @ParameterizedTest

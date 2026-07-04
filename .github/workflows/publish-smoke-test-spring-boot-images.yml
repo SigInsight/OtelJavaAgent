@@ -21,9 +21,23 @@ jobs:
     uses: ./.github/workflows/reusable-publish-smoke-test-images.yml
     with:
       project: ":smoke-tests:images:spring-boot"
+      spring-boot-major: "3"
       # SB 3.x requires Java 17+
       skip-java-8: true
       skip-java-11: true
+
+  # Spring Boot 2.x image (JDK 8/11/17/21/25) for cross-JDK compatibility smoke tests
+  # (Logs, SdkDisabled, Sampling, AgentDebugLogging). Built from the same parameterized
+  # build script via -PspringBootMajor=2; shares the SB 3.x job's tag (same run id) so
+  # both image families published in a single run share one version constant.
+  publish-sb2:
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/reusable-publish-smoke-test-images.yml
+    with:
+      project: ":smoke-tests:images:spring-boot"
+      spring-boot-major: "2"
 
   workflow-notification:
     permissions:
@@ -31,7 +45,8 @@ jobs:
       issues: write
     needs:
       - publish
+      - publish-sb2
     if: always()
     uses: ./.github/workflows/reusable-workflow-notification.yml
     with:
-      success: ${{ needs.publish.result == 'success' }}
+      success: ${{ needs.publish.result == 'success' && needs.publish-sb2.result == 'success' }}
