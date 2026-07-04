@@ -17,7 +17,7 @@ class SdkDisabledSmokeTest extends AbstractSmokeTest<Integer> {
 
   @Override
   protected void configure(SmokeTestOptions<Integer> options) {
-    options.springBoot().env("OTEL_SDK_DISABLED", "true").telemetryTimeout(Duration.ofSeconds(5));
+    options.springBoot2().env("OTEL_SDK_DISABLED", "true").telemetryTimeout(Duration.ofSeconds(5));
   }
 
   @ParameterizedTest

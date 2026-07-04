@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.junit.jupiter.api.Assertions;
 
 public class SmokeTestOptions<T> {
 
@@ -32,7 +33,7 @@ public class SmokeTestOptions<T> {
     return this;
   }
 
-  /** Configure test for spring boot test app. */
+  /** Configure test for the Spring Boot 3.x test app (JDK 17/21/25). */
   @CanIgnoreReturnValue
   public SmokeTestOptions<T> springBoot() {
     image(
@@ -40,6 +41,32 @@ public class SmokeTestOptions<T> {
             String.format(
                 "ghcr.io/%s/smoke-test-spring-boot:jdk%s-%s",
                 ImageVersions.GHCR_REPOSITORY, jdk, TestImageVersions.SPRING_BOOT_VERSION));
+    waitStrategy(
+        new TargetWaitStrategy.Log(Duration.ofMinutes(1), ".*Started SpringbootApplication in.*"));
+    return this;
+  }
+
+  /**
+   * Configure test for the Spring Boot 2.x test app, used for JDK 8/11/17/21/25 compatibility smoke
+   * tests. Fails loudly (red) when {@link TestImageVersions#SPRING_BOOT_2_VERSION} is still "UNSET",
+   * so an unbuilt SB 2.x image surfaces immediately instead of leaving CI green with skipped tests.
+   * A typo'd tag (not "UNSET") is caught separately by the short testcontainers pull timeout
+   * (see smoke-tests/src/test/resources/testcontainers.properties).
+   */
+  @CanIgnoreReturnValue
+  public SmokeTestOptions<T> springBoot2() {
+    if ("UNSET".equals(TestImageVersions.SPRING_BOOT_2_VERSION)) {
+      Assertions.fail(
+          "Spring Boot 2.x smoke image is not configured: TestImageVersions.SPRING_BOOT_2_VERSION"
+              + " is still \"UNSET\". Trigger the Spring Boot image publish workflow"
+              + " (.github/workflows/publish-smoke-test-spring-boot-images.yml) and set"
+              + " SPRING_BOOT_2_VERSION to the published tag.");
+    }
+    image(
+        jdk ->
+            String.format(
+                "ghcr.io/%s/smoke-test-spring-boot:sb2-jdk%s-%s",
+                ImageVersions.GHCR_REPOSITORY, jdk, TestImageVersions.SPRING_BOOT_2_VERSION));
     waitStrategy(
         new TargetWaitStrategy.Log(Duration.ofMinutes(1), ".*Started SpringbootApplication in.*"));
     return this;
