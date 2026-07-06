@@ -24,6 +24,7 @@
   "com.linecorp.armeria:armeria#+": "1.39.1",
   "com.linecorp.armeria:armeria-junit5#+": "1.39.1",
   "com.lmax:disruptor#+": "4.0.0",
+  "com.mchange:c3p0#+": "0.14.1",
   "com.ning:async-http-client#+": "1.9.40",
   "com.ning:async-http-client#1.8.+": "1.8.17",
   "com.ning:async-http-client#1.9.+": "1.9.40",
