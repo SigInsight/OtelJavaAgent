@@ -1,6 +1,7 @@
 /** Common setup for manual instrumentation of libraries and javaagent instrumentation. */
 
 import io.opentelemetry.instrumentation.gradle.OtelPropsExtension
+import io.opentelemetry.instrumentation.gradle.TestLatestDepsRule
 
 plugins {
   `java-library`
@@ -87,15 +88,6 @@ fun isStableVersion(version: String): Boolean {
     || Regex("^.*-[0-9a-f]{7,}$").matches(versionString)
     || Regex("^\\d{4}-\\d{2}-\\d{2}t\\d{2}-\\d{2}-\\d{2}.*$").matches(versionString)
   return !draftVersion
-}
-
-@CacheableRule
-abstract class TestLatestDepsRule : ComponentMetadataRule {
-  override fun execute(context: ComponentMetadataContext) {
-    if (!isStableVersion(context.details.id.version)) {
-      context.details.status = "milestone"
-    }
-  }
 }
 
 configurations {
