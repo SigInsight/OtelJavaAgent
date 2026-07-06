@@ -73,11 +73,12 @@ jobs:
           issue_title="chore: update instrumentation list [automated reminder]"
           # dedup: reuse an existing open issue with the same title
           existing=$(gh issue list --search "in:title $issue_title" --state open --limit 1 --json number -q '.[].number')
-          body="The instrumentation metadata is out of date. Run \`./gradlew :instrumentation-docs:runAnalysis\` locally, then commit and push \`docs/instrumentation-list.yaml\` to main (commit on the GitLab side so the mirror stays in sync). See [$GITHUB_WORKFLOW #$GITHUB_RUN_NUMBER](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+          body="The instrumentation metadata is out of date. Run \`./.github/scripts/metadata-ci-collect.sh\` locally first, then run \`./gradlew :instrumentation-docs:runAnalysis\`, then commit and push \`docs/instrumentation-list.yaml\` to main (commit on the GitLab side so the mirror stays in sync). See [$GITHUB_WORKFLOW #$GITHUB_RUN_NUMBER](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
           if [[ -z "$existing" ]]; then
             gh issue create --title "$issue_title" --body "$body"
           else
-            gh issue comment "$existing" --body "Still out of date as of run #$GITHUB_RUN_NUMBER ($GITHUB_RUN_ID)."
+            gh issue edit "$existing" --body "$body"
+            gh issue comment "$existing" --body "Still out of date as of run #$GITHUB_RUN_NUMBER ($GITHUB_RUN_ID). Run \`./.github/scripts/metadata-ci-collect.sh\` first, then \`./gradlew :instrumentation-docs:runAnalysis\`."
           fi
 
   workflow-notification:
