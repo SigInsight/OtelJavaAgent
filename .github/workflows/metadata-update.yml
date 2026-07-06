@@ -6,6 +6,11 @@ name: Metadata Update
 # self-hosted GitLab, so automated commits on the GitHub side would diverge from GitLab.
 
 on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
   workflow_dispatch:
     inputs:
       debug_logging:
@@ -65,8 +70,21 @@ jobs:
             echo "has_diff=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Fail PR when instrumentation metadata is out of date
+        if: steps.diffcheck.outputs.has_diff == 'true' && github.event_name == 'pull_request'
+        run: |
+          echo "Instrumentation metadata is out of date for this PR." >> $GITHUB_STEP_SUMMARY
+          echo >> $GITHUB_STEP_SUMMARY
+          echo "Run the following locally and commit the updated docs/instrumentation-list.yaml:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo './.github/scripts/metadata-ci-collect.sh' >> $GITHUB_STEP_SUMMARY
+          echo './gradlew :instrumentation-docs:runAnalysis' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "metadata-update detected changes in docs/instrumentation-list.yaml. Run ./.github/scripts/metadata-ci-collect.sh and ./gradlew :instrumentation-docs:runAnalysis locally, then commit the regenerated file." >&2
+          exit 1
+
       - name: Open issue to remind about metadata update
-        if: steps.diffcheck.outputs.has_diff == 'true'
+        if: steps.diffcheck.outputs.has_diff == 'true' && github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -80,6 +98,20 @@ jobs:
             gh issue edit "$existing" --body "$body"
             gh issue comment "$existing" --body "Still out of date as of run #$GITHUB_RUN_NUMBER ($GITHUB_RUN_ID). Run \`./.github/scripts/metadata-ci-collect.sh\` first, then \`./gradlew :instrumentation-docs:runAnalysis\`."
           fi
+
+      - name: Close metadata update reminder issue when no diff exists
+        if: steps.diffcheck.outputs.has_diff == 'false' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          issue_title="chore: update instrumentation list [automated reminder]"
+          mapfile -t existing < <(gh issue list --search "in:title $issue_title" --state open --limit 100 --json number -q '.[].number')
+          if [[ ${#existing[@]} -eq 0 ]]; then
+            exit 0
+          fi
+          for issue_number in "${existing[@]}"; do
+            gh issue close "$issue_number" --comment "Closing automatically because instrumentation metadata is up to date as of run #$GITHUB_RUN_NUMBER ($GITHUB_RUN_ID)."
+          done
 
   workflow-notification:
     permissions:
