@@ -115,7 +115,8 @@ class InstrumentationAnalyzerTest {
   void testAnalyzeAppliesEmittedScopeBeforeFilteringTelemetry(@TempDir Path tempDir)
       throws IOException {
     Path instrumentationDir = tempDir.resolve("instrumentation").resolve("oshi-5.0");
-    Files.createDirectories(instrumentationDir.resolve("javaagent"));
+    Path javaagentDir = Files.createDirectories(instrumentationDir.resolve("javaagent"));
+    Files.createFile(javaagentDir.resolve("build.gradle.kts"));
     Path telemetryDir = instrumentationDir.resolve(".telemetry");
     Files.createDirectories(telemetryDir);
 

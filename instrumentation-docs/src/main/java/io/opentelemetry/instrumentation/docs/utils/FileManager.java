@@ -27,9 +27,15 @@ public record FileManager(String rootDir) {
     try (Stream<Path> walk = Files.walk(rootPath)) {
       return walk.filter(Files::isDirectory)
           .filter(dir -> isValidInstrumentationPath(dir.toString()))
+          .filter(FileManager::hasBuildFile)
           .map(dir -> parseInstrumentationPath(dir.toString()))
           .collect(toList());
     }
+  }
+
+  private static boolean hasBuildFile(Path directory) {
+    return Files.isRegularFile(directory.resolve("build.gradle"))
+        || Files.isRegularFile(directory.resolve("build.gradle.kts"));
   }
 
   @Nullable
@@ -72,7 +78,7 @@ public record FileManager(String rootDir) {
     }
 
     if (normalized.matches(
-        ".*(/test/|/testing|/build/|-common/|-common-|common-|/compile-stub/|-testing|bootstrap/src).*")) {
+        ".*(/test/|/testing|/build/|/bin/|-common/|-common-|common-|/compile-stub/|-testing|bootstrap/src).*")) {
       return false;
     }
 

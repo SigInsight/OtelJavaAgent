@@ -31,7 +31,11 @@ class FileManagerTest {
   void testGetInstrumentationPaths() throws IOException {
     Path validDir =
         Files.createDirectories(tempDir.resolve("instrumentation/my-instrumentation/javaagent"));
+    Files.createFile(validDir.resolve("build.gradle.kts"));
+    Files.createDirectories(tempDir.resolve("instrumentation/removed-instrumentation/javaagent"));
+
     List<InstrumentationPath> paths = fileManager.getInstrumentationPaths();
+
     assertThat(paths).hasSize(1);
     assertThat(paths.get(0).srcPath()).isEqualTo(validDir.toString());
   }
@@ -49,6 +53,18 @@ class FileManagerTest {
   void testExcludesCommonModules() {
     assertThat(
             FileManager.isValidInstrumentationPath("instrumentation/redisson/redisson-common-3.0"))
+        .isFalse();
+  }
+
+  @Test
+  void testExcludesBinDirectories() {
+    assertThat(
+            FileManager.isValidInstrumentationPath(
+                "instrumentation/executors/bootstrap/bin/main/example/javaagent"))
+        .isFalse();
+    assertThat(
+            FileManager.isValidInstrumentationPath(
+                "instrumentation/executors/bootstrap/bin/main/example/library"))
         .isFalse();
   }
 

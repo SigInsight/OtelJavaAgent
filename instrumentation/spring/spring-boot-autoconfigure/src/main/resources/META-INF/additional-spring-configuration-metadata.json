@@ -267,12 +267,6 @@
       "defaultValue": "10000"
     },
     {
-      "name": "otel.exporter.zipkin.endpoint",
-      "type": "java.lang.String",
-      "description": "The Zipkin endpoint to connect to.<br/>Currently only HTTP is supported.",
-      "defaultValue": "http://localhost:9411/api/v2/spans"
-    },
-    {
       "name": "otel.instrumentation.annotations.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable the <code>@WithSpan</code> annotation.",
@@ -817,10 +811,6 @@
         {
           "value": "tracecontext",
           "description": "The Trace Context propagator propagates trace context using the W3C Trace Context format (add `baggage` as well to include W3C baggage). See https://www.w3.org/TR/trace-context/."
-        },
-        {
-          "value": "xray",
-          "description": "The AWS X-Ray propagator propagates trace context using the AWS X-Ray format. See https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader."
         }
       ]
     },
@@ -838,10 +828,6 @@
         {
           "value": "otlp",
           "description": "OpenTelemetry Protocol (OTLP) exporter."
-        },
-        {
-          "value": "zipkin",
-          "description": "Zipkin exporter."
         }
       ]
     },

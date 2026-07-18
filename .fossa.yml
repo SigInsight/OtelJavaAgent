@@ -99,6 +99,12 @@ targets:
       target: ':instrumentation:jdbc:library'
     - type: gradle
       path: ./
+      target: ':instrumentation:jmx-metrics:javaagent'
+    - type: gradle
+      path: ./
+      target: ':instrumentation:jmx-metrics:library'
+    - type: gradle
+      path: ./
       target: ':instrumentation:methods:javaagent'
     - type: gradle
       path: ./
@@ -294,9 +300,6 @@ targets:
       target: ':instrumentation:opentelemetry-api:opentelemetry-api-1.0:javaagent'
     - type: gradle
       path: ./
-      target: ':instrumentation:opentelemetry-api:opentelemetry-api-1.4:javaagent'
-    - type: gradle
-      path: ./
       target: ':instrumentation:opentelemetry-api:opentelemetry-api-1.10:javaagent'
     - type: gradle
       path: ./
@@ -316,6 +319,9 @@ targets:
     - type: gradle
       path: ./
       target: ':instrumentation:opentelemetry-api:opentelemetry-api-1.38:javaagent'
+    - type: gradle
+      path: ./
+      target: ':instrumentation:opentelemetry-api:opentelemetry-api-1.4:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:opentelemetry-api:opentelemetry-api-1.40:javaagent'
@@ -417,13 +423,13 @@ targets:
       target: ':instrumentation:spring:starters:spring-boot-starter'
     - type: gradle
       path: ./
-      target: ':instrumentation:spring:starters:zipkin-spring-boot-starter'
-    - type: gradle
-      path: ./
       target: ':instrumentation:tomcat:tomcat-10.0:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:tomcat:tomcat-common-7.0:javaagent'
+    - type: gradle
+      path: ./
+      target: ':instrumentation:tomcat:tomcat-jdbc-8.5:javaagent'
     - type: gradle
       path: ./
       target: ':instrumentation:log4j:log4j-context-data:log4j-context-data-2.17:javaagent'
@@ -472,4 +478,3 @@ experimental:
     configurations-only:
       # consumer will only be exposed to these dependencies
       - runtimeClasspath
-

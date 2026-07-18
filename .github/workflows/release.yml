@@ -17,6 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag commit is on main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
       - name: Free disk space
         run: .github/scripts/gha-free-disk-space.sh
@@ -34,6 +41,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
 
+      - name: Test final agent jar
+        run: >
+          ./gradlew :javaagent:test
+          --tests io.opentelemetry.javaagent.ShadingTest
+          --tests io.opentelemetry.javaagent.classloading.ShadowPackageRenamingTest
+
       - name: Build agent jar
         run: ./gradlew assemble -x javadoc -x test
 
@@ -41,11 +54,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          jar=$(ls javaagent/build/libs/opentelemetry-javaagent-*-SNAPSHOT.jar 2>/dev/null | head -1)
-          if [ -z "$jar" ]; then
-            jar=$(ls javaagent/build/libs/opentelemetry-javaagent-*.jar | grep -v sources | head -1)
+          mapfile -t jars < <(
+            find javaagent/build/libs -maxdepth 1 -type f \
+              -name 'opentelemetry-javaagent-*.jar' \
+              ! -name '*-base.jar' \
+              ! -name '*-sources.jar'
+          )
+          if [ "${#jars[@]}" -ne 1 ]; then
+            printf 'Expected one release agent jar, found %s\n' "${#jars[@]}" >&2
+            printf '%s\n' "${jars[@]}" >&2
+            exit 1
           fi
-          cp "$jar" opentelemetry-javaagent.jar
+          cp "${jars[0]}" opentelemetry-javaagent.jar
           gh release create "$GITHUB_REF_NAME" opentelemetry-javaagent.jar \
             --title "$GITHUB_REF_NAME" \
             --notes "Automated release of the OpenTelemetry Java Agent jar from commit $GITHUB_SHA."

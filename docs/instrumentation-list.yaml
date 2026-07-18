@@ -1135,10 +1135,6 @@ libraries:
       attributes:
       - name: hibernate.session_id
         type: STRING
-- name: hibernate-reactive-1.0
-  source_path: instrumentation/hibernate/hibernate-reactive-1.0
-  scope:
-    name: io.opentelemetry.hibernate-reactive-1.0
 - name: hikaricp-3.0
   display_name: HikariCP
   description: This instrumentation enables database connection pool metrics for HikariCP.
@@ -3297,10 +3293,6 @@ libraries:
         type: STRING
       - name: url.full
         type: STRING
-- name: opentelemetry
-  source_path: instrumentation/executors/bootstrap/bin/main/io/opentelemetry
-  scope:
-    name: io.opentelemetry.opentelemetry
 - name: oshi-5.0
   display_name: OSHI
   description: |
