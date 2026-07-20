@@ -3,6 +3,7 @@
 > 整理自代码走读，目标读者：想搞清楚 OTel javaagent **底层是怎么把 trace 代码"塞"进 Spring/JDBC/OkHttp 等第三方库**的开发者。
 >
 > 相关文档：
+>
 > - [javaagent-structure.md](javaagent-structure.md) — agent 的整体模块结构
 > - [writing-instrumentation-module.md](writing-instrumentation-module.md) — 怎么写一个 InstrumentationModule
 > - [debugging.md](debugging.md) — 怎么调试 Advice
@@ -73,7 +74,7 @@ ClassFileTransformer transformer = agentBuilder.installOn(inst);   // ← 只调
 ### 为什么是一个
 
 1. **类加载是热路径**：JVM 每加载一个类会**遍历所有已注册 transformer**。如果每模块一个 transformer，按基线 271 个 InstrumentationModule 计算就要回调 271 次，光"我管不管这个类"的判断开销就能让启动慢上几倍。
-2. **优化决策树**：合并后 ByteBuddy 可以把所有 `typeMatcher` 编译成一棵决策树（[`AgentBuilderUtil.optimize`](../../javaagent-tooling/src/main/java/io/opentelemetry/javaagent/tooling/AgentBuilderUtil.java)），一次匹配就决定哪些模块命中。
+2. **优化决策树**：合并后 ByteBuddy 可以把所有 `typeMatcher` 编译成一棵决策树（[`AgentBuilderUtil.optimize`](../../javaagent-tooling/src/main/java/net/bytebuddy/agent/builder/AgentBuilderUtil.java)），一次匹配就决定哪些模块命中。
 3. **多模块改同一方法不丢失**：合并后 ByteBuddy 用 Advice 链式叠加机制，让多个模块的 Advice 在同一方法上**层层包裹**；独立 transformer 会互相覆盖。
 
 ### 例外：3 个 agent 自身的补丁 transformer
@@ -319,6 +320,7 @@ ClassFileTransformer transformer = agentBuilder.installOn(inst);
 ```
 
 ByteBuddy 在这里：
+
 1. 把所有模块累积的 `type(...)` 匹配器编译成决策树
 2. 把所有模块的 `Advice.to(...)` 包装成一个 `ClassFileTransformer`
 3. 调 `inst.addTransformer(transformer, true)` 注册到 JVM
@@ -347,6 +349,7 @@ ByteBuddy 内部：
 ```
 
 之后业务代码每次调 `stmt.execute("SELECT ...")`：
+
 1. 进方法第一件事执行（或调用）`StatementAdvice.onEnter`，启动 span
 2. 真正的 SQL 执行
 3. 方法 return / throw 之前执行 `StatementAdvice.stopSpan`，结束 span

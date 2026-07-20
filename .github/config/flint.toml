@@ -1,5 +1,5 @@
 [settings]
-exclude = ["CHANGELOG.md", "licenses/licenses.md"]
+exclude = ["CHANGELOG.md", "job-logs.txt", "licenses/licenses.md"]
 
 [checks.lychee]
 check_all_local = true
