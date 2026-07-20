@@ -34,7 +34,6 @@
 | JVM 自动探测最大堆 | ~7.71 GiB（默认 1/4 物理内存） |
 | Gradle | 9.5.1 |
 
-
 ## Benchmark 配置说明
 
 | 名称 | 含义 |
@@ -264,6 +263,7 @@ ServletWithSdkDisabledBenchmark.execute:p1.00                      sample       
 ### 1. 全开 agent 仅引入 +7.9% 延迟（67.5 → 72.9 μs）
 
 每请求增加约 **5.3 μs** 的纯 CPU 开销。在 HTTP 请求场景下完全可接受。
+
 - p99 甚至 **比基准更低**（158.7 vs 162.0 μs），说明高分位上 agent 没有引入抖动。
 - p99.9 同样更低（553 vs 782 μs），证明 instrumentation 的开销分布很稳定。
 
@@ -308,6 +308,7 @@ ServletWithSdkDisabledBenchmark.execute:p1.00                      sample       
 ### 5. 数值置信区间
 
 各项 Score 的 Error 都在 ±0.15 μs 以下（5 fork × 25 iter，3M+ 样本），统计可信。但仍需注意：
+
 - p99.9 / p1.00（最大值）波动较大，不应据此下定性结论。
 - JMH 输出中提示了 Compiler Blackholes 实验性特性 —— 跨 JVM 对比时需保持一致 mode。
 

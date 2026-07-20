@@ -77,19 +77,11 @@ These are the supported libraries and frameworks:
 [HTTP Client Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#http-client-span
 [HTTP Server Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-metrics.md#http-server
 [HTTP Client Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-metrics.md#http-client
-[RPC Server Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/rpc/rpc-spans.md#rpc-server-span
-[RPC Client Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/rpc/rpc-spans.md#rpc-client-span
-[RPC Server Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/rpc/rpc-metrics.md#rpc-server
-[RPC Client Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/rpc/rpc-metrics.md#rpc-client
-[Messaging Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/messaging/messaging-spans.md
 [Database Client Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-spans.md
 [Database Client Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-metrics.md
 [Database Pool Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-metrics.md
 [JVM Runtime Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/runtime/jvm-metrics.md
 [System Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/system/system-metrics.md
-[FaaS Server Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/faas/faas-spans.md
-[GenAI Client Spans]: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md
-[GenAI Client Metrics]: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-metrics.md#generative-ai-client-metrics
 
 ## Application Servers
 
