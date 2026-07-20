@@ -14,18 +14,18 @@ import java.util.List;
 
 public class Agent {
 
-  static final String OTEL_LATEST =
+  static final String UPSTREAM_LATEST_RELEASE_URL =
       "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar";
 
   public static final Agent NONE = new Agent("none", "no agent at all");
-  public static final Agent LATEST_RELEASE =
-      new Agent("latest", "latest mainstream release", OTEL_LATEST);
-  public static final Agent LATEST_SNAPSHOT =
-      new Agent("snapshot", "latest available snapshot version from main");
-  public static final Agent LATEST_SNAPSHOT_INDY =
+  public static final Agent UPSTREAM_LATEST_RELEASE =
+      new Agent("latest", "latest upstream release", UPSTREAM_LATEST_RELEASE_URL);
+  public static final Agent FORK_SNAPSHOT =
+      new Agent("snapshot", "current fork build from the local source tree");
+  public static final Agent FORK_SNAPSHOT_INDY =
       new Agent(
           "snapshot-indy",
-          "latest available snapshot version from main with indy enabled",
+          "current fork build from the local source tree with indy enabled",
           null,
           Collections.singletonList("-Dotel.javaagent.experimental.indy=true"));
 

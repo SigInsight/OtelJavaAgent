@@ -329,40 +329,21 @@ If `override_telemetry` is `false` or omitted (default behavior), manual telemet
 auto-generated telemetry, with manual entries taking precedence in case of conflicts (same metric name
 or span kind within the same `when` condition).
 
-## Instrumentation List (docs/instrumentation-list.md)
+## Instrumentation List (`docs/instrumentation-list.yaml`)
 
 The contents of the `metadata.yaml` files are combined with other information about the instrumentation
-to generate a complete catalog of instrumentations in `docs/instrumentation-list.md`. This file
+to generate a complete catalog of instrumentations in `docs/instrumentation-list.yaml`. This file
 is generated via a gradle task and should not be edited directly (see
 [this readme](../../instrumentation-docs/readme.md) for more information on this process).
 
-**If you are submitting new instrumentation or updating existing instrumentation, you do not need to
-update this file unless you want to, as it can take a significant amount of time to run** (40+
-minutes). Each night a [GitHub Action](../../.github/workflows/metadata-update.yml) runs to
-regenerate this file based on the current state of the repository, so all changes will be reflected
-within 24 hours.
+When adding, changing, or removing instrumentation or its `metadata.yaml`, regenerate the list before
+submitting the change:
 
-## opentelemetry.io
+```bash
+./.github/scripts/metadata-ci-collect.sh
+./gradlew :instrumentation-docs:runAnalysis
+```
 
-All of our instrumentation modules are listed on the opentelemetry.io website in two places:
-
-### Supported Libraries
-
-The [Supported Libraries](https://opentelemetry.io/docs/zero-code/java/agent/supported-libraries/)
-page lists all the library instrumentations that are included in the OpenTelemetry Java agent. It
-mostly mirrors the information from the [supported libraries](../supported-libraries.md) page in
-this repo, and should be updated when adding or removing library instrumentations. There is a
-[Github action](../../.github/workflows/documentation-synchronization-audit.yml) that runs nightly
-to check for any missing instrumentations, and will open an issue if any are found.
-
-This page may be automatically generated in the future, but for now it is manually maintained.
-
-### Suppressing Instrumentation
-
-The [Suppressing instrumentation](https://opentelemetry.io/docs/zero-code/java/agent/disable/#suppressing-specific-agent-instrumentation)
-page lists the instrumentations in the context of the keys needed for using
-the `otel.instrumentation.[name].enabled` configuration.
-
-All new instrumentations should be added to this list. There is a
-[Github action](../../.github/workflows/documentation-synchronization-audit.yml) that runs nightly to check
-for any missing instrumentations, and will open an issue if any are found.
+The first command regenerates telemetry inputs for the selected instrumentation tests. The second
+command writes `docs/instrumentation-list.yaml`. Commit the generated YAML when it changes. The
+pull-request metadata gate runs the same commands and fails when the generated file has drifted.

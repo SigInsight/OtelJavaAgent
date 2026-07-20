@@ -9,6 +9,7 @@ import static java.util.Locale.Category.FORMAT;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import io.opentelemetry.instrumentation.docs.internal.InstrumentationModule;
 import io.opentelemetry.instrumentation.docs.utils.FileManager;
@@ -16,10 +17,12 @@ import io.opentelemetry.instrumentation.docs.utils.YamlHelper;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
@@ -36,7 +39,13 @@ public class DocGeneratorApplication {
       baseRepoPath += "/";
     }
 
-    FileManager fileManager = new FileManager(baseRepoPath);
+    Set<Path> instrumentationProjectDirs =
+        System.getProperty("instrumentationProjectDirs", "")
+            .lines()
+            .filter(path -> !path.isBlank())
+            .map(Paths::get)
+            .collect(toUnmodifiableSet());
+    FileManager fileManager = new FileManager(baseRepoPath, instrumentationProjectDirs);
     List<InstrumentationModule> modules = new InstrumentationAnalyzer(fileManager).analyze();
 
     try (BufferedWriter writer =

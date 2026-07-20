@@ -25,8 +25,8 @@ public final class SafeServiceLoader {
    *
    * <p>Those errors can happen when some classes returned by {@code ServiceLoader} were compiled
    * for later java version than is used by currently running JVM. During normal course of business
-   * this should not happen. Please read CONTRIBUTING.md, section "Testing - Java versions" for a
-   * background info why this is Ok.
+   * this should not happen, but ignoring them allows optional service implementations to target
+   * newer Java versions without preventing compatible implementations from loading.
    */
   // Because we want to catch exception per iteration
   @SuppressWarnings("ForEachIterable")

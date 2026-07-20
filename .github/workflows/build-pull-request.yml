@@ -106,7 +106,7 @@ jobs:
   smoke-test:
     # "other" covers spring-boot + fake-backend + early-jdk8; the four servlet
     # suites cover the servlet scenario. Tests pull pre-built app images from
-    # ghcr.io (pinned in TestImageVersions) — see CONTRIBUTING.md.
+    # ghcr.io, with versions pinned in TestImageVersions.
     name: smoke (${{ matrix.smoke-test-suite }})
     runs-on: ubuntu-latest
     strategy:

@@ -37,6 +37,10 @@ tasks {
     dependsOn(classes)
 
     systemProperty("basePath", project.rootDir)
+    systemProperty(
+      "instrumentationProjectDirs",
+      project(":instrumentation").allprojects.joinToString("\n") { it.projectDir.absolutePath },
+    )
     mainClass.set("io.opentelemetry.instrumentation.docs.DocGeneratorApplication")
     classpath(sourceSets["main"].runtimeClasspath)
   }

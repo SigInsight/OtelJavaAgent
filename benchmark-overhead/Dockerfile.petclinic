@@ -2,7 +2,7 @@ FROM eclipse-temurin:11.0.31_11-jdk@sha256:1d5e03cb02c10e21884f2ceae93e6d91c3d84
 
 # This is the base image that will contain a built version of the spring-petclinic-rest
 # application. Installing the dependencies and maven compiling the application is time
-# consuming, so we do it in a base image to save time nightly.
+# consuming, so we do it in a base image to save time in scheduled benchmark runs.
 
 RUN apt update && apt install -y git
 WORKDIR /app

@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,6 +39,22 @@ class FileManagerTest {
 
     assertThat(paths).hasSize(1);
     assertThat(paths.get(0).srcPath()).isEqualTo(validDir.toString());
+  }
+
+  @Test
+  void testGetInstrumentationPathsFiltersUnregisteredProjects() throws IOException {
+    Path registeredDir =
+        Files.createDirectories(tempDir.resolve("instrumentation/registered/javaagent"));
+    Files.createFile(registeredDir.resolve("build.gradle.kts"));
+    Path unregisteredDir =
+        Files.createDirectories(tempDir.resolve("instrumentation/unregistered/javaagent"));
+    Files.createFile(unregisteredDir.resolve("build.gradle.kts"));
+
+    fileManager = new FileManager(tempDir + "/", Set.of(registeredDir));
+
+    assertThat(fileManager.getInstrumentationPaths())
+        .extracting(InstrumentationPath::srcPath)
+        .containsExactly(registeredDir.toString());
   }
 
   @Test

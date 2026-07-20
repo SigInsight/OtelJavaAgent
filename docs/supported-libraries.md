@@ -1,10 +1,15 @@
 # Supported libraries, frameworks, application servers, and JVMs
 
-We automatically instrument and support a huge number of libraries, frameworks,
-and application servers... right out of the box!
+This page is a compatibility index for libraries, frameworks, and application servers that are
+included in or related to this distribution. The maintenance commitment for each category is
+defined by the [support policy](support-policy.md).
 
-Don't see your favorite tool listed here? Consider [filing an issue](https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues),
-or [contributing](../CONTRIBUTING.md).
+Don't see your favorite tool listed here? Consider [filing an issue](https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues).
+
+The generated [instrumentation list](instrumentation-list.yaml) is the source of truth for modules
+included in this fork's default Java agent. This page is a readable compatibility index and also
+links to standalone library instrumentation artifacts, which are not necessarily bundled in the
+default agent.
 
 ## Contents
 

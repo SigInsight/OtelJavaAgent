@@ -106,7 +106,8 @@ The following environment variables can be used for configuration:
 
 ## Troubleshooting CI Test Failures
 
-See [Troubleshooting CI Test Failures](../../CONTRIBUTING.md#troubleshooting-pr-build-failures) for common issues and solutions.
+Run the failing Gradle task locally with `--stacktrace --info`, then see the
+[Debugging](debugging.md) guide for instrumentation-specific investigation.
 
 ## Debugging
 
