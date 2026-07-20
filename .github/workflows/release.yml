@@ -58,6 +58,8 @@ jobs:
             find javaagent/build/libs -maxdepth 1 -type f \
               -name 'opentelemetry-javaagent-*.jar' \
               ! -name '*-base.jar' \
+              ! -name '*-dontuse.jar' \
+              ! -name '*-javadoc.jar' \
               ! -name '*-sources.jar'
           )
           if [ "${#jars[@]}" -ne 1 ]; then
