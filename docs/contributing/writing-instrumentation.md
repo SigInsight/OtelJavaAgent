@@ -359,9 +359,8 @@ To update the pinned versions locally:
 ./gradlew resolveLatestDepVersions -PtestLatestDeps=true -PresolveLatestDeps=true
 ```
 
-A [daily CI job](../../.github/workflows/update-latest-dep-versions.yml) resolves all dynamic
-versions and opens a PR if any have changed. If CI fails on that PR, it typically means a new
-library version broke an instrumentation. To fix it:
+Run the command above when a latest-dependency update is required. If the resulting validation
+fails, it typically means a new library version broke an instrumentation. To fix it:
 
 1. Create a branch from main
 2. Fix the instrumentation

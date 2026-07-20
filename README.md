@@ -1,7 +1,5 @@
 # OpenTelemetry Java 自动注入项目
 
-[![Release](https://img.shields.io/github/v/release/open-telemetry/opentelemetry-java-instrumentation?include_prereleases&style=)](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-telemetry/opentelemetry-java-instrumentation/badge)](https://scorecard.dev/viewer/?uri=github.com/open-telemetry/opentelemetry-java-instrumentation)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel--java-blue.svg?logo=slack)](https://cloud-native.slack.com/archives/C014L2KCTE3)
 
 * [项目简介](#项目简介)
@@ -9,20 +7,36 @@
 * [构建体系](#构建体系)
 * [手工构建与打包](#手工构建与打包)
 * [支持的库与框架](#支持的库与框架)
+* [支持策略](docs/support-policy.md)
 * [配置与扩展](#配置与扩展)
 
 ## 项目简介
 
-本项目提供一个 Java Agent JAR，可以附加到任意 Java 8 及以上应用上，动态注入字节码，从大量常见库和框架中采集遥测数据。
-最终效果是不需要修改业务代码，就可以从 Java 应用中采集 traces、metrics 和 logs。
+本项目是 OpenTelemetry Java Agent 的精简 fork，主要维护 Spring Boot 3、Java 17 和 Java 21
+应用的自动插桩。它提供一个 Java Agent JAR，在不修改业务代码的前提下采集 traces、metrics
+和 logs。
 
+具体库和 JVM 的兼容性取决于模块级测试与发行内容；本 fork 不对主要维护范围之外的组合作出
+通用支持承诺。维护范围、CI 验证和尽力兼容的定义见[支持策略](docs/support-policy.md)。
 
 ## 快速开始
 
-下载 [最新版本](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar)，通过 `-javaagent` 参数启用：
+当前不提供已验证的公共二进制下载地址。请从本仓库构建完整 Agent JAR：
 
 ```bash
-java -javaagent:path/to/opentelemetry-javaagent.jar \
+./gradlew :javaagent:shadowJar
+
+AGENT_JAR="$(find javaagent/build/libs -maxdepth 1 -type f \
+  -name 'opentelemetry-javaagent-*.jar' \
+  ! -name '*-base.jar' \
+  ! -name '*-sources.jar' \
+  -print -quit)"
+```
+
+再通过 `-javaagent` 参数启用：
+
+```bash
+java -javaagent:"$AGENT_JAR" \
      -Dotel.resource.attributes=service.name=your-service-name \
      -jar myapp.jar
 ```
@@ -247,6 +261,7 @@ otel.dsl-conventions                      定义 otelProps 扩展
 最终产物在 `javaagent/build/libs/opentelemetry-javaagent-*.jar`。
 
 同目录下还有两个变体：
+
 - `*-base.jar` — 仅含 agent machinery，用于自定义发行版
 - `*-dontuse.jar` — 普通 jar 输出，不可直接使用
 
@@ -326,15 +341,21 @@ done
 
 ## 支持的库与框架
 
-项目开箱即用地支持大量 [库与框架](docs/supported-libraries.md#libraries--frameworks)。
-完整清单、禁用方法见 [supported-libraries.md](docs/supported-libraries.md)。
+[`docs/instrumentation-list.yaml`](docs/instrumentation-list.yaml) 是由 Gradle 从已注册模块生成的
+发行清单；其中 `has_javaagent: true` 表示模块包含在默认 Java Agent 中。
+
+[支持的库与框架索引](docs/supported-libraries.md#libraries--frameworks) 按类别汇总常用库、独立
+library artifact 和默认禁用项。Spring Boot 3 的包含范围与明确排除项见
+[Spring Boot 3 集成](instrumentation/spring/README.md)。
 
 ## 配置与扩展
 
-- **Agent 配置**: https://opentelemetry.io/docs/zero-code/java/agent/configuration/
-- **SDK 配置**: https://opentelemetry.io/docs/languages/java/configuration/
+- **Agent 配置**: [OpenTelemetry Agent configuration](https://opentelemetry.io/docs/zero-code/java/agent/configuration/)
+- **SDK 配置**: [OpenTelemetry Java configuration](https://opentelemetry.io/docs/languages/java/configuration/)
+- **Spring Boot 3 集成**: [instrumentation/spring/README.md](instrumentation/spring/README.md)
+- **维护与性能评估**: [docs/maintenance-policy.md](docs/maintenance-policy.md)
 - **创建扩展**: [examples/extension/README.md](examples/extension/README.md)
 - **创建发行版**: [examples/distro/README.md](examples/distro/README.md)
-- **手动埋点**: https://opentelemetry.io/docs/languages/java/instrumentation/#manual-instrumentation
+- **手动埋点**: [OpenTelemetry Java manual instrumentation](https://opentelemetry.io/docs/languages/java/instrumentation/#manual-instrumentation)
 - **Logger MDC 自动注入**: [docs/logger-mdc-instrumentation.md](docs/logger-mdc-instrumentation.md)
 - **调试日志**: `-Dotel.javaagent.debug=true`（非常冗长，仅排查问题时开启）

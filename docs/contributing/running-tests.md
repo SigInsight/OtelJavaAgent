@@ -87,7 +87,8 @@ To execute all the instrumentation tests runnable as GraalVM native executables:
 ./gradlew nativeTest
 ```
 
-[A Github workflow](../../.github/workflows/native-tests-daily.yml) executes the native tests every day.
+Run this task locally when changing native-image support. No scheduled native-test workflow is
+currently configured.
 
 ## Docker disk space
 
@@ -106,7 +107,8 @@ The following environment variables can be used for configuration:
 
 ## Troubleshooting CI Test Failures
 
-See [Troubleshooting CI Test Failures](../../CONTRIBUTING.md#troubleshooting-pr-build-failures) for common issues and solutions.
+Run the failing Gradle task locally with `--stacktrace --info`, then see the
+[Debugging](debugging.md) guide for instrumentation-specific investigation.
 
 ## Debugging
 

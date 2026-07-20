@@ -6,11 +6,6 @@ name: Metadata Update
 # self-hosted GitLab, so automated commits on the GitHub side would diverge from GitLab.
 
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
   workflow_dispatch:
     inputs:
       debug_logging:
@@ -70,21 +65,8 @@ jobs:
             echo "has_diff=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Fail PR when instrumentation metadata is out of date
-        if: steps.diffcheck.outputs.has_diff == 'true' && github.event_name == 'pull_request'
-        run: |
-          echo "Instrumentation metadata is out of date for this PR." >> $GITHUB_STEP_SUMMARY
-          echo >> $GITHUB_STEP_SUMMARY
-          echo "Run the following locally and commit the updated docs/instrumentation-list.yaml:" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo './.github/scripts/metadata-ci-collect.sh' >> $GITHUB_STEP_SUMMARY
-          echo './gradlew :instrumentation-docs:runAnalysis' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "metadata-update detected changes in docs/instrumentation-list.yaml. Run ./.github/scripts/metadata-ci-collect.sh and ./gradlew :instrumentation-docs:runAnalysis locally, then commit the regenerated file." >&2
-          exit 1
-
       - name: Open issue to remind about metadata update
-        if: steps.diffcheck.outputs.has_diff == 'true' && github.event_name != 'pull_request'
+        if: steps.diffcheck.outputs.has_diff == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -100,7 +82,7 @@ jobs:
           fi
 
       - name: Close metadata update reminder issue when no diff exists
-        if: steps.diffcheck.outputs.has_diff == 'false' && github.event_name != 'pull_request'
+        if: steps.diffcheck.outputs.has_diff == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

@@ -14,12 +14,17 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
-public record FileManager(String rootDir) {
+public record FileManager(String rootDir, Set<Path> instrumentationProjectDirs) {
   private static final Logger logger = Logger.getLogger(FileManager.class.getName());
+
+  public FileManager(String rootDir) {
+    this(rootDir, Set.of());
+  }
 
   public List<InstrumentationPath> getInstrumentationPaths() throws IOException {
     Path rootPath = Paths.get(rootDir + "instrumentation");
@@ -28,9 +33,14 @@ public record FileManager(String rootDir) {
       return walk.filter(Files::isDirectory)
           .filter(dir -> isValidInstrumentationPath(dir.toString()))
           .filter(FileManager::hasBuildFile)
+          .filter(this::isRegisteredInstrumentationProject)
           .map(dir -> parseInstrumentationPath(dir.toString()))
           .collect(toList());
     }
+  }
+
+  private boolean isRegisteredInstrumentationProject(Path directory) {
+    return instrumentationProjectDirs.isEmpty() || instrumentationProjectDirs.contains(directory);
   }
 
   private static boolean hasBuildFile(Path directory) {

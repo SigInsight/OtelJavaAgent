@@ -14,9 +14,13 @@ public enum Configs {
   RELEASE(
       TestConfig.builder()
           .name("release")
-          .description("compares no agent, latest stable, and latest snapshot agents")
+          .description(
+              "compares no agent, the latest upstream release, and the current fork build")
           .withAgents(
-              Agent.NONE, Agent.LATEST_RELEASE, Agent.LATEST_SNAPSHOT, Agent.LATEST_SNAPSHOT_INDY)
+              Agent.NONE,
+              Agent.UPSTREAM_LATEST_RELEASE,
+              Agent.FORK_SNAPSHOT,
+              Agent.FORK_SNAPSHOT_INDY)
           .warmupSeconds(60)
           .build());
 

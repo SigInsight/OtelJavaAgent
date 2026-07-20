@@ -1,10 +1,15 @@
 # Supported libraries, frameworks, application servers, and JVMs
 
-We automatically instrument and support a huge number of libraries, frameworks,
-and application servers... right out of the box!
+This page is a compatibility index for libraries, frameworks, and application servers that are
+included in or related to this distribution. The maintenance commitment for each category is
+defined by the [support policy](support-policy.md).
 
-Don't see your favorite tool listed here? Consider [filing an issue](https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues),
-or [contributing](../CONTRIBUTING.md).
+Don't see your favorite tool listed here? Consider [filing an issue](https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues).
+
+The generated [instrumentation list](instrumentation-list.yaml) is the source of truth for modules
+included in this fork's default Java agent. This page is a readable compatibility index and also
+links to standalone library instrumentation artifacts, which are not necessarily bundled in the
+default agent.
 
 ## Contents
 
@@ -72,19 +77,11 @@ These are the supported libraries and frameworks:
 [HTTP Client Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#http-client-span
 [HTTP Server Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-metrics.md#http-server
 [HTTP Client Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-metrics.md#http-client
-[RPC Server Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/rpc/rpc-spans.md#rpc-server-span
-[RPC Client Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/rpc/rpc-spans.md#rpc-client-span
-[RPC Server Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/rpc/rpc-metrics.md#rpc-server
-[RPC Client Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/rpc/rpc-metrics.md#rpc-client
-[Messaging Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/messaging/messaging-spans.md
 [Database Client Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-spans.md
 [Database Client Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-metrics.md
 [Database Pool Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/db/database-metrics.md
 [JVM Runtime Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/runtime/jvm-metrics.md
 [System Metrics]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/system/system-metrics.md
-[FaaS Server Spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/faas/faas-spans.md
-[GenAI Client Spans]: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md
-[GenAI Client Metrics]: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-metrics.md#generative-ai-client-metrics
 
 ## Application Servers
 
