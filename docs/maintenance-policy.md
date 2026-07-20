@@ -3,6 +3,9 @@
 This document defines the operational maintenance rules for this Spring Boot 3-focused agent
 distribution. The [support policy](support-policy.md) defines the product support levels.
 
+GitHub Actions is the CI system of record. GitLab hosts the source repository; do not add or rely
+on GitLab CI configuration.
+
 ## Release qualification
 
 Releases are created by pushing a `vX.Y.Z` tag whose commit is an ancestor of `main`. The release
